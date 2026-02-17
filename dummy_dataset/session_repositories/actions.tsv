@@ -1,0 +1,217 @@
+action_id	action_type	action_params	session_id	user_id	project_id	creation_time	parent_display_id	child_display_id	solution
+1	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	-99	-99	0	2024-01-02 11:00:00	1	2	True
+2	group	"{""field"": ""region"", ""aggregations"": []}"	-99	-99	0	2024-01-03 12:00:00	2	3	True
+3	sort	"{""field"": ""amount""}"	-99	-99	0	2024-01-04 13:00:00	3	4	True
+4	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	-99	-98	0	2024-01-02 11:00:00	4	5	True
+5	group	"{""field"": ""region"", ""aggregations"": []}"	-99	-98	0	2024-01-03 12:00:00	5	6	True
+6	sort	"{""field"": ""amount""}"	-99	-98	0	2024-01-04 13:00:00	6	7	True
+7	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	-98	-99	0	2024-01-02 11:00:00	7	8	True
+8	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	-98	-99	0	2024-01-03 12:00:00	8	9	True
+9	sort	"{""field"": ""amount""}"	-98	-99	0	2024-01-04 13:00:00	9	10	True
+10	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	-98	-98	0	2024-01-02 11:00:00	10	11	True
+11	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	-98	-98	0	2024-01-03 12:00:00	11	12	True
+12	sort	"{""field"": ""amount""}"	-98	-98	0	2024-01-04 13:00:00	12	13	True
+13	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	-97	-99	0	2024-01-02 11:00:00	13	14	True
+14	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	-97	-99	0	2024-01-03 12:00:00	14	15	True
+15	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	-97	-99	0	2024-01-04 13:00:00	15	16	True
+16	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	-97	-98	0	2024-01-02 11:00:00	16	17	True
+17	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	-97	-98	0	2024-01-03 12:00:00	17	18	True
+18	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	-97	-98	0	2024-01-04 13:00:00	18	19	True
+19	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	-89	-99	0	2024-01-02 11:00:00	19	20	True
+20	group	"{""field"": ""region"", ""aggregations"": []}"	-89	-99	0	2024-01-03 12:00:00	20	21	True
+21	sort	"{""field"": ""amount""}"	-89	-99	0	2024-01-04 13:00:00	21	22	True
+22	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	-89	-98	0	2024-01-02 11:00:00	22	23	True
+23	group	"{""field"": ""region"", ""aggregations"": []}"	-89	-98	0	2024-01-03 12:00:00	23	24	True
+24	sort	"{""field"": ""amount""}"	-89	-98	0	2024-01-04 13:00:00	24	25	True
+25	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	-88	-99	0	2024-01-02 11:00:00	25	26	True
+26	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	-88	-99	0	2024-01-03 12:00:00	26	27	True
+27	sort	"{""field"": ""amount""}"	-88	-99	0	2024-01-04 13:00:00	27	28	True
+28	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	-88	-98	0	2024-01-02 11:00:00	28	29	True
+29	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	-88	-98	0	2024-01-03 12:00:00	29	30	True
+30	sort	"{""field"": ""amount""}"	-88	-98	0	2024-01-04 13:00:00	30	31	True
+31	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	-87	-99	0	2024-01-02 11:00:00	31	32	True
+32	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	-87	-99	0	2024-01-03 12:00:00	32	33	True
+33	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	-87	-99	0	2024-01-04 13:00:00	33	34	True
+34	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	-87	-98	0	2024-01-02 11:00:00	34	35	True
+35	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	-87	-98	0	2024-01-03 12:00:00	35	36	True
+36	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	-87	-98	0	2024-01-04 13:00:00	36	37	True
+37	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	-79	-99	0	2024-01-02 11:00:00	37	38	True
+38	group	"{""field"": ""region"", ""aggregations"": []}"	-79	-99	0	2024-01-03 12:00:00	38	39	True
+39	sort	"{""field"": ""amount""}"	-79	-99	0	2024-01-04 13:00:00	39	40	True
+40	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	-79	-98	0	2024-01-02 11:00:00	40	41	True
+41	group	"{""field"": ""region"", ""aggregations"": []}"	-79	-98	0	2024-01-03 12:00:00	41	42	True
+42	sort	"{""field"": ""amount""}"	-79	-98	0	2024-01-04 13:00:00	42	43	True
+43	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	-78	-99	0	2024-01-02 11:00:00	43	44	True
+44	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	-78	-99	0	2024-01-03 12:00:00	44	45	True
+45	sort	"{""field"": ""amount""}"	-78	-99	0	2024-01-04 13:00:00	45	46	True
+46	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	-78	-98	0	2024-01-02 11:00:00	46	47	True
+47	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	-78	-98	0	2024-01-03 12:00:00	47	48	True
+48	sort	"{""field"": ""amount""}"	-78	-98	0	2024-01-04 13:00:00	48	49	True
+49	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	-77	-99	0	2024-01-02 11:00:00	49	50	True
+50	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	-77	-99	0	2024-01-03 12:00:00	50	51	True
+51	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	-77	-99	0	2024-01-04 13:00:00	51	52	True
+52	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	-77	-98	0	2024-01-02 11:00:00	52	53	True
+53	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	-77	-98	0	2024-01-03 12:00:00	53	54	True
+54	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	-77	-98	0	2024-01-04 13:00:00	54	55	True
+55	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	1	1	1	2024-01-02 11:00:00	55	56	True
+56	group	"{""field"": ""region"", ""aggregations"": []}"	1	1	1	2024-01-03 12:00:00	56	57	True
+57	sort	"{""field"": ""amount""}"	1	1	1	2024-01-04 13:00:00	57	58	True
+58	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	1	2	1	2024-01-02 11:00:00	58	59	True
+59	group	"{""field"": ""region"", ""aggregations"": []}"	1	2	1	2024-01-03 12:00:00	59	60	True
+60	sort	"{""field"": ""amount""}"	1	2	1	2024-01-04 13:00:00	60	61	True
+61	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	2	1	1	2024-01-02 11:00:00	61	62	True
+62	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	2	1	1	2024-01-03 12:00:00	62	63	True
+63	sort	"{""field"": ""amount""}"	2	1	1	2024-01-04 13:00:00	63	64	True
+64	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	2	2	1	2024-01-02 11:00:00	64	65	True
+65	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	2	2	1	2024-01-03 12:00:00	65	66	True
+66	sort	"{""field"": ""amount""}"	2	2	1	2024-01-04 13:00:00	66	67	True
+67	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	3	1	1	2024-01-02 11:00:00	67	68	True
+68	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	3	1	1	2024-01-03 12:00:00	68	69	True
+69	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	3	1	1	2024-01-04 13:00:00	69	70	True
+70	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	3	2	1	2024-01-02 11:00:00	70	71	True
+71	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	3	2	1	2024-01-03 12:00:00	71	72	True
+72	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	3	2	1	2024-01-04 13:00:00	72	73	True
+73	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	11	1	1	2024-01-02 11:00:00	73	74	True
+74	group	"{""field"": ""region"", ""aggregations"": []}"	11	1	1	2024-01-03 12:00:00	74	75	True
+75	sort	"{""field"": ""amount""}"	11	1	1	2024-01-04 13:00:00	75	76	True
+76	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	11	2	1	2024-01-02 11:00:00	76	77	True
+77	group	"{""field"": ""region"", ""aggregations"": []}"	11	2	1	2024-01-03 12:00:00	77	78	True
+78	sort	"{""field"": ""amount""}"	11	2	1	2024-01-04 13:00:00	78	79	True
+79	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	12	1	1	2024-01-02 11:00:00	79	80	True
+80	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	12	1	1	2024-01-03 12:00:00	80	81	True
+81	sort	"{""field"": ""amount""}"	12	1	1	2024-01-04 13:00:00	81	82	True
+82	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	12	2	1	2024-01-02 11:00:00	82	83	True
+83	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	12	2	1	2024-01-03 12:00:00	83	84	True
+84	sort	"{""field"": ""amount""}"	12	2	1	2024-01-04 13:00:00	84	85	True
+85	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	13	1	1	2024-01-02 11:00:00	85	86	True
+86	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	13	1	1	2024-01-03 12:00:00	86	87	True
+87	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	13	1	1	2024-01-04 13:00:00	87	88	True
+88	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	13	2	1	2024-01-02 11:00:00	88	89	True
+89	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	13	2	1	2024-01-03 12:00:00	89	90	True
+90	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	13	2	1	2024-01-04 13:00:00	90	91	True
+91	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	21	1	1	2024-01-02 11:00:00	91	92	True
+92	group	"{""field"": ""region"", ""aggregations"": []}"	21	1	1	2024-01-03 12:00:00	92	93	True
+93	sort	"{""field"": ""amount""}"	21	1	1	2024-01-04 13:00:00	93	94	True
+94	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	21	2	1	2024-01-02 11:00:00	94	95	True
+95	group	"{""field"": ""region"", ""aggregations"": []}"	21	2	1	2024-01-03 12:00:00	95	96	True
+96	sort	"{""field"": ""amount""}"	21	2	1	2024-01-04 13:00:00	96	97	True
+97	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	22	1	1	2024-01-02 11:00:00	97	98	True
+98	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	22	1	1	2024-01-03 12:00:00	98	99	True
+99	sort	"{""field"": ""amount""}"	22	1	1	2024-01-04 13:00:00	99	100	True
+100	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	22	2	1	2024-01-02 11:00:00	100	101	True
+101	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	22	2	1	2024-01-03 12:00:00	101	102	True
+102	sort	"{""field"": ""amount""}"	22	2	1	2024-01-04 13:00:00	102	103	True
+103	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	23	1	1	2024-01-02 11:00:00	103	104	True
+104	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	23	1	1	2024-01-03 12:00:00	104	105	True
+105	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	23	1	1	2024-01-04 13:00:00	105	106	True
+106	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	23	2	1	2024-01-02 11:00:00	106	107	True
+107	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	23	2	1	2024-01-03 12:00:00	107	108	True
+108	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	23	2	1	2024-01-04 13:00:00	108	109	True
+109	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	101	101	2	2024-01-02 11:00:00	109	110	True
+110	group	"{""field"": ""region"", ""aggregations"": []}"	101	101	2	2024-01-03 12:00:00	110	111	True
+111	sort	"{""field"": ""amount""}"	101	101	2	2024-01-04 13:00:00	111	112	True
+112	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	101	102	2	2024-01-02 11:00:00	112	113	True
+113	group	"{""field"": ""region"", ""aggregations"": []}"	101	102	2	2024-01-03 12:00:00	113	114	True
+114	sort	"{""field"": ""amount""}"	101	102	2	2024-01-04 13:00:00	114	115	True
+115	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	102	101	2	2024-01-02 11:00:00	115	116	True
+116	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	102	101	2	2024-01-03 12:00:00	116	117	True
+117	sort	"{""field"": ""amount""}"	102	101	2	2024-01-04 13:00:00	117	118	True
+118	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	102	102	2	2024-01-02 11:00:00	118	119	True
+119	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	102	102	2	2024-01-03 12:00:00	119	120	True
+120	sort	"{""field"": ""amount""}"	102	102	2	2024-01-04 13:00:00	120	121	True
+121	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	103	101	2	2024-01-02 11:00:00	121	122	True
+122	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	103	101	2	2024-01-03 12:00:00	122	123	True
+123	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	103	101	2	2024-01-04 13:00:00	123	124	True
+124	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	103	102	2	2024-01-02 11:00:00	124	125	True
+125	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	103	102	2	2024-01-03 12:00:00	125	126	True
+126	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	103	102	2	2024-01-04 13:00:00	126	127	True
+127	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	111	101	2	2024-01-02 11:00:00	127	128	True
+128	group	"{""field"": ""region"", ""aggregations"": []}"	111	101	2	2024-01-03 12:00:00	128	129	True
+129	sort	"{""field"": ""amount""}"	111	101	2	2024-01-04 13:00:00	129	130	True
+130	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	111	102	2	2024-01-02 11:00:00	130	131	True
+131	group	"{""field"": ""region"", ""aggregations"": []}"	111	102	2	2024-01-03 12:00:00	131	132	True
+132	sort	"{""field"": ""amount""}"	111	102	2	2024-01-04 13:00:00	132	133	True
+133	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	112	101	2	2024-01-02 11:00:00	133	134	True
+134	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	112	101	2	2024-01-03 12:00:00	134	135	True
+135	sort	"{""field"": ""amount""}"	112	101	2	2024-01-04 13:00:00	135	136	True
+136	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	112	102	2	2024-01-02 11:00:00	136	137	True
+137	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	112	102	2	2024-01-03 12:00:00	137	138	True
+138	sort	"{""field"": ""amount""}"	112	102	2	2024-01-04 13:00:00	138	139	True
+139	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	113	101	2	2024-01-02 11:00:00	139	140	True
+140	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	113	101	2	2024-01-03 12:00:00	140	141	True
+141	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	113	101	2	2024-01-04 13:00:00	141	142	True
+142	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	113	102	2	2024-01-02 11:00:00	142	143	True
+143	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	113	102	2	2024-01-03 12:00:00	143	144	True
+144	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	113	102	2	2024-01-04 13:00:00	144	145	True
+145	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	121	101	2	2024-01-02 11:00:00	145	146	True
+146	group	"{""field"": ""region"", ""aggregations"": []}"	121	101	2	2024-01-03 12:00:00	146	147	True
+147	sort	"{""field"": ""amount""}"	121	101	2	2024-01-04 13:00:00	147	148	True
+148	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	121	102	2	2024-01-02 11:00:00	148	149	True
+149	group	"{""field"": ""region"", ""aggregations"": []}"	121	102	2	2024-01-03 12:00:00	149	150	True
+150	sort	"{""field"": ""amount""}"	121	102	2	2024-01-04 13:00:00	150	151	True
+151	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	122	101	2	2024-01-02 11:00:00	151	152	True
+152	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	122	101	2	2024-01-03 12:00:00	152	153	True
+153	sort	"{""field"": ""amount""}"	122	101	2	2024-01-04 13:00:00	153	154	True
+154	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	122	102	2	2024-01-02 11:00:00	154	155	True
+155	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	122	102	2	2024-01-03 12:00:00	155	156	True
+156	sort	"{""field"": ""amount""}"	122	102	2	2024-01-04 13:00:00	156	157	True
+157	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	123	101	2	2024-01-02 11:00:00	157	158	True
+158	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	123	101	2	2024-01-03 12:00:00	158	159	True
+159	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	123	101	2	2024-01-04 13:00:00	159	160	True
+160	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	123	102	2	2024-01-02 11:00:00	160	161	True
+161	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	123	102	2	2024-01-03 12:00:00	161	162	True
+162	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	123	102	2	2024-01-04 13:00:00	162	163	True
+163	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	201	201	3	2024-01-02 11:00:00	163	164	True
+164	group	"{""field"": ""region"", ""aggregations"": []}"	201	201	3	2024-01-03 12:00:00	164	165	True
+165	sort	"{""field"": ""amount""}"	201	201	3	2024-01-04 13:00:00	165	166	True
+166	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	201	202	3	2024-01-02 11:00:00	166	167	True
+167	group	"{""field"": ""region"", ""aggregations"": []}"	201	202	3	2024-01-03 12:00:00	167	168	True
+168	sort	"{""field"": ""amount""}"	201	202	3	2024-01-04 13:00:00	168	169	True
+169	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	202	201	3	2024-01-02 11:00:00	169	170	True
+170	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	202	201	3	2024-01-03 12:00:00	170	171	True
+171	sort	"{""field"": ""amount""}"	202	201	3	2024-01-04 13:00:00	171	172	True
+172	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	202	202	3	2024-01-02 11:00:00	172	173	True
+173	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	202	202	3	2024-01-03 12:00:00	173	174	True
+174	sort	"{""field"": ""amount""}"	202	202	3	2024-01-04 13:00:00	174	175	True
+175	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	203	201	3	2024-01-02 11:00:00	175	176	True
+176	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	203	201	3	2024-01-03 12:00:00	176	177	True
+177	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	203	201	3	2024-01-04 13:00:00	177	178	True
+178	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	203	202	3	2024-01-02 11:00:00	178	179	True
+179	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	203	202	3	2024-01-03 12:00:00	179	180	True
+180	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	203	202	3	2024-01-04 13:00:00	180	181	True
+181	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	211	201	3	2024-01-02 11:00:00	181	182	True
+182	group	"{""field"": ""region"", ""aggregations"": []}"	211	201	3	2024-01-03 12:00:00	182	183	True
+183	sort	"{""field"": ""amount""}"	211	201	3	2024-01-04 13:00:00	183	184	True
+184	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	211	202	3	2024-01-02 11:00:00	184	185	True
+185	group	"{""field"": ""region"", ""aggregations"": []}"	211	202	3	2024-01-03 12:00:00	185	186	True
+186	sort	"{""field"": ""amount""}"	211	202	3	2024-01-04 13:00:00	186	187	True
+187	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	212	201	3	2024-01-02 11:00:00	187	188	True
+188	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	212	201	3	2024-01-03 12:00:00	188	189	True
+189	sort	"{""field"": ""amount""}"	212	201	3	2024-01-04 13:00:00	189	190	True
+190	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	212	202	3	2024-01-02 11:00:00	190	191	True
+191	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	212	202	3	2024-01-03 12:00:00	191	192	True
+192	sort	"{""field"": ""amount""}"	212	202	3	2024-01-04 13:00:00	192	193	True
+193	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	213	201	3	2024-01-02 11:00:00	193	194	True
+194	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	213	201	3	2024-01-03 12:00:00	194	195	True
+195	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	213	201	3	2024-01-04 13:00:00	195	196	True
+196	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	213	202	3	2024-01-02 11:00:00	196	197	True
+197	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	213	202	3	2024-01-03 12:00:00	197	198	True
+198	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	213	202	3	2024-01-04 13:00:00	198	199	True
+199	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	221	201	3	2024-01-02 11:00:00	199	200	True
+200	group	"{""field"": ""region"", ""aggregations"": []}"	221	201	3	2024-01-03 12:00:00	200	201	True
+201	sort	"{""field"": ""amount""}"	221	201	3	2024-01-04 13:00:00	201	202	True
+202	filter	"{""field"": ""category"", ""term"": ""Electronics"", ""condition"": 8}"	221	202	3	2024-01-02 11:00:00	202	203	True
+203	group	"{""field"": ""region"", ""aggregations"": []}"	221	202	3	2024-01-03 12:00:00	203	204	True
+204	sort	"{""field"": ""amount""}"	221	202	3	2024-01-04 13:00:00	204	205	True
+205	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	222	201	3	2024-01-02 11:00:00	205	206	True
+206	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	222	201	3	2024-01-03 12:00:00	206	207	True
+207	sort	"{""field"": ""amount""}"	222	201	3	2024-01-04 13:00:00	207	208	True
+208	filter	"{""field"": ""region"", ""term"": ""North"", ""condition"": 8}"	222	202	3	2024-01-02 11:00:00	208	209	True
+209	group	"{""field"": ""category"", ""aggregations"": [{""field"": ""amount"", ""type"": ""sum""}]}"	222	202	3	2024-01-03 12:00:00	209	210	True
+210	sort	"{""field"": ""amount""}"	222	202	3	2024-01-04 13:00:00	210	211	True
+211	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	223	201	3	2024-01-02 11:00:00	211	212	True
+212	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	223	201	3	2024-01-03 12:00:00	212	213	True
+213	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	223	201	3	2024-01-04 13:00:00	213	214	True
+214	filter	"{""field"": ""payment_method"", ""term"": ""Credit"", ""condition"": 8}"	223	202	3	2024-01-02 11:00:00	214	215	True
+215	filter	"{""field"": ""amount"", ""term"": ""100"", ""condition"": 32}"	223	202	3	2024-01-03 12:00:00	215	216	True
+216	group	"{""field"": ""customer_id"", ""aggregations"": [{""field"": ""amount"", ""type"": ""count""}]}"	223	202	3	2024-01-04 13:00:00	216	217	True

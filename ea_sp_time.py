@@ -22,8 +22,17 @@ from torch_geometric.data import Dataset
 # %%
 repo = Repository('./session_repositories/actions.tsv','./session_repositories/displays.tsv','./raw_datasets/')
 
-with open(f'./edge/act_five_feats.pickle', 'rb') as fin:
-    act_feats = pickle.load(fin)
+import os
+act_file_candidates = ['./edge/act_feats.pickle', './edge/act_five_feats.pickle']
+act_feats = None
+for p in act_file_candidates:
+    if os.path.exists(p):
+        with open(p, 'rb') as fin:
+            act_feats = pickle.load(fin)
+        print(f"Loaded action features from {p}")
+        break
+if act_feats is None:
+    raise FileNotFoundError("No action features file found. Expected one of: " + ", ".join(act_file_candidates))
 
 with open(f'./edge/col_action.pickle', 'rb') as fin:
     col_feats = pickle.load(fin)
@@ -31,8 +40,15 @@ with open(f'./edge/col_action.pickle', 'rb') as fin:
 with open(f'./edge/cond_action.pickle', 'rb') as fin:
     cond_feats = pickle.load(fin)
 
-with open(f'./display_feats/display_feats.pickle', 'rb') as fin:
-    display_feats = pickle.load(fin)
+# Load display_feats if available (optional, for backward compatibility)
+display_feats = None
+display_feats_path = './display_feats/display_feats.pickle'
+if os.path.exists(display_feats_path):
+    with open(display_feats_path, 'rb') as fin:
+        display_feats = pickle.load(fin)
+    print(f"Loaded display features from {display_feats_path}")
+else:
+    print(f"[INFO] {display_feats_path} not found, using PCA features only")
 
 with open(f'./display_feats/display_pca_feats_{9999}.pickle', 'rb') as fin:
     display_pca_feats = pickle.load(fin)
@@ -54,6 +70,14 @@ for key in act_feats:
 concat_feats = {}
 for key in act_feats:
     concat_feats[key] = np.concatenate((act_feats[key], col_feats[key])).copy()
+
+# Determine edge feature dimensionality (used by GINE/GAT convs)
+EDGE_DIM = 20
+try:
+    EDGE_DIM = len(next(iter(concat_feats.values())))
+except StopIteration:
+    EDGE_DIM = 20
+print(f"[CONFIG] Using EDGE_DIM={EDGE_DIM} for GINE/GAT convs")
 
 # %%
 def get_predecessors(G, node):
@@ -334,11 +358,11 @@ def treefy_sessions(sessions, d_feats, a_feats, tar, min_size, main_size, test_i
 
 
 def make_gin_conv(input_dim, out_dim):
-    return GINEConv(nn.Sequential(nn.Linear(input_dim, out_dim), nn.ReLU(), nn.Dropout(p=0.5), nn.Linear(out_dim, out_dim)), eps=True, edge_dim=20)
-    # return GINEConv(nn.Sequential(nn.Linear(input_dim, out_dim)), eps=True, edge_dim=20)
+    return GINEConv(nn.Sequential(nn.Linear(input_dim, out_dim), nn.ReLU(), nn.Dropout(p=0.5), nn.Linear(out_dim, out_dim)), eps=True, edge_dim=EDGE_DIM)
+    # return GINEConv(nn.Sequential(nn.Linear(input_dim, out_dim)), eps=True, edge_dim=EDGE_DIM)
 
 def make_gat_conv(input_dim, out_dim, heads=4):
-    return GATConv(input_dim, out_dim, heads=heads, dropout=0.5, concat=False, edge_dim=30)
+    return GATConv(input_dim, out_dim, heads=heads, dropout=0.5, concat=False, edge_dim=EDGE_DIM)
 
 class MatchingNetwork(nn.Module):
     def __init__(self, input_dim, q_hid_dim, q_num_layers, project_dim, output_dim, lstm_hid_dim, lstm_num_layers, lstm_project_dim, device):
@@ -816,8 +840,8 @@ pickle.dump(
     {'avg':avg, 'stdv':stdv}, 
     open(f'./model_stats/{task}_{main_size}_gine_seq_time.pickle', 'wb'), 
     protocol=pickle.HIGHEST_PROTOCOL
-)  
-    
+)
+
 
 
 

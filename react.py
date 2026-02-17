@@ -21,26 +21,40 @@ from lib.utilities import Repository
 from tqdm import tqdm
 import torch
 from collections import Counter
-from mtree import MTree
+#from  import MTree
 from sklearn.neighbors import BallTree
 import zss
+from tqdm import tqdm
 
 
 
 repo = Repository('./session_repositories/actions.tsv','./session_repositories/displays.tsv','./raw_datasets/')
 
 
-with open(f'./edge/act_five_feats.pickle', 'rb') as fin:
-    act_feats = pickle.load(fin)
+act_file_candidates = ['./edge/act_feats.pickle', './edge/act_five_feats.pickle']
+act_feats = None
+for p in act_file_candidates:
+    if os.path.exists(p):
+        with open(p, 'rb') as fin:
+            act_feats = pickle.load(fin)
+        print(f"Loaded action features from {p}")
+        break
+if act_feats is None:
+    raise FileNotFoundError("No action features file found. Expected one of: " + ", ".join(act_file_candidates))
 
 with open(f'./edge/col_action.pickle', 'rb') as fin:
     col_feats = pickle.load(fin)
 
-with open(f'./display_feats/display_feats.pickle', 'rb') as fin:
-    display_feats = pickle.load(fin)
+#with open(f'./display_feats/display_feats.pickle', 'rb') as fin:
+#    display_feats = pickle.load(fin)
 
-with open(f'./display_feats/display_pca_feats.pickle', 'rb') as fin:
+# Support both legacy 'display_pca_feats.pickle' and new '_9999' suffix
+display_pca_path = './display_feats/display_pca_feats.pickle'
+if not os.path.exists(display_pca_path):
+    display_pca_path = './display_feats/display_pca_feats_9999.pickle'
+with open(display_pca_path, 'rb') as fin:
     display_pca_feats = pickle.load(fin)
+print(f"Loaded display PCA features from {display_pca_path}")
 
 together_feats = {}
 for key in act_feats:
@@ -475,7 +489,7 @@ k_limit = int(math.ceil(k_mid + (k_mid / 2)))
 
 ra3_across_kf = [[], [], []]
 mrr_across_kf = [[], [], []]
-for kf in kf_splits:
+for kf in tqdm(kf_splits):
     train_g = []
     train_y = []
     val_g = []
@@ -499,14 +513,16 @@ for kf in kf_splits:
     g_list.extend(val_g)
 
     partial_calculate_ted = partial(calculate_ted, g_list=g_list)
+    print("Load tree data")
     x = np.array(list(range(len(train_g))), dtype=np.int32).reshape(-1, 1)
+    print("Build tree")
     balltree = BallTree(x, leaf_size=30, metric=partial_calculate_ted)
-
+    print("Tree done")
     val_offset = len(train_g)
 
     all_close = [[], [], []]
     # with tqdm(total=len(val_g), desc='(T)') as pbar:
-    for i in range(len(val_g)):
+    for i in tqdm(range(len(val_g))):
         _, indices = balltree.query([[val_offset + i]], k=k_limit)
         for task in range(3):
             all_close[task].append(train_y[:, task][indices[0,:]])
@@ -514,7 +530,7 @@ for kf in kf_splits:
 
     plot_ra3 = [[], [], []]
     plot_mrr = [[], [], []]
-    for k in range(k_start, k_limit + 1):
+    for k in tqdm(range(k_start, k_limit + 1)):
         for task in range(3):
             if task == 0:
                 n = 1
@@ -554,7 +570,8 @@ for kf in kf_splits:
 plot_x = list(range(k_start, k_limit + 1))
 k_cv_ra3 = []
 k_cv_mrr = []
-for task in range(3):
+print("Get task stats")
+for task in tqdm(range(3)):
     ra3_np_arr = np.array(ra3_across_kf[task])
     ra3_mean = ra3_np_arr.mean(axis=0)
     k_max_ra3 = plot_x[np.argmax(ra3_mean).item()]
@@ -583,17 +600,17 @@ k_max = max(max(k_cv_ra3), max(k_cv_mrr))
 
 test_close = [[], [], []]
 # with tqdm(total=len(test_g_og), desc='(T)') as pbar:
-for i in range(len(test_g_og)):
+for i in tqdm(range(len(test_g_og))):
     _, indices = balltree.query([[test_offset + i]], k=k_max)
     for task in range(3):
         test_close[task].append(train_y[:, task][indices[0,:]])
     # pbar.update()
 
-
+print("test tasks")
 ra3_preds = [[], [], []]
 mrr_preds = [[], [], []]
-for task in range(3):
-    for matching_classes in test_close[task]:
+for task in tqdm(range(3)):
+    for matching_classes in tqdm(test_close[task]):
         if task == 0:
             n = 1
         else:
@@ -619,6 +636,6 @@ pickle.dump(
     protocol=pickle.HIGHEST_PROTOCOL
 )
 
-        
+
 
 

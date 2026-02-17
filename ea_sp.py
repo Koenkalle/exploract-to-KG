@@ -35,6 +35,8 @@ from torch_geometric.data import Dataset, Data
 from livelossplot import PlotLosses
 import optuna
 from optuna.trial import TrialState
+from tqdm import tqdm
+import datetime
 
 
 
@@ -44,8 +46,18 @@ repo = Repository('./session_repositories/actions.tsv','./session_repositories/d
 # %%
 device = torch.device('cuda')
 
-with open(f'./edge/act_five_feats.pickle', 'rb') as fin:
-    act_feats = pickle.load(fin)
+# Load action features (support new 'act_feats.pickle' and legacy 'act_five_feats.pickle')
+import os
+act_file_candidates = ['./edge/act_feats.pickle', './edge/act_five_feats.pickle']
+act_feats = None
+for p in act_file_candidates:
+    if os.path.exists(p):
+        with open(p, 'rb') as fin:
+            act_feats = pickle.load(fin)
+        print(f"Loaded action features from {p}")
+        break
+if act_feats is None:
+    raise FileNotFoundError("No action features file found. Expected one of: " + ", ".join(act_file_candidates))
 
 with open(f'./edge/col_action.pickle', 'rb') as fin:
     col_feats = pickle.load(fin)
@@ -53,8 +65,8 @@ with open(f'./edge/col_action.pickle', 'rb') as fin:
 with open(f'./edge/cond_action.pickle', 'rb') as fin:
     cond_feats = pickle.load(fin)
 
-with open(f'./display_feats/display_feats.pickle', 'rb') as fin:
-    display_feats = pickle.load(fin)
+#with open(f'./display_feats/display_feats.pickle', 'rb') as fin:
+#    display_feats = pickle.load(fin)
 
 with open(f'./display_feats/display_pca_feats_{9999}.pickle', 'rb') as fin:
     display_pca_feats = pickle.load(fin)
@@ -76,6 +88,14 @@ for key in act_feats:
 concat_feats = {}
 for key in act_feats:
     concat_feats[key] = np.concatenate((act_feats[key], col_feats[key])).copy()
+
+# Determine edge feature dimensionality (used by GINE/GAT convs)
+EDGE_DIM = 20
+try:
+    EDGE_DIM = len(next(iter(concat_feats.values())))
+except StopIteration:
+    EDGE_DIM = 20
+print(f"[CONFIG] Using EDGE_DIM={EDGE_DIM} for GINE/GAT convs")
 
 # %%
 def get_predecessors(G, node):
@@ -128,7 +148,7 @@ def dfs(G, root):
 
 # %%
 def replay_graph(edges, d_feats, a_feats, tar, min_size, main_size, is_train):
-    logic_error_displays = [427, 428, 429, 430, 
+    logic_error_displays = [427, 428, 429, 430,
                         854, 855, 856, 868, 891, 
                         977, 978, 979, 980, 
                         1304, 1908, 1909, 1983, 
@@ -356,11 +376,11 @@ def treefy_sessions(sessions, d_feats, a_feats, tar, min_size, main_size, test_i
 
 
 def make_gin_conv(input_dim, out_dim):
-    return GINEConv(nn.Sequential(nn.Linear(input_dim, out_dim), nn.ReLU(), nn.Dropout(p=0.5), nn.Linear(out_dim, out_dim)), eps=True, edge_dim=20)
+    return GINEConv(nn.Sequential(nn.Linear(input_dim, out_dim), nn.ReLU(), nn.Dropout(p=0.5), nn.Linear(out_dim, out_dim)), eps=True, edge_dim=EDGE_DIM)
     # return GINEConv(nn.Sequential(nn.Linear(input_dim, out_dim)), eps=True, edge_dim=20)
 
 def make_gat_conv(input_dim, out_dim, heads=4):
-    return GATConv(input_dim, out_dim, heads=heads, dropout=0.5, concat=False, edge_dim=30)
+    return GATConv(input_dim, out_dim, heads=heads, dropout=0.5, concat=False, edge_dim=EDGE_DIM)
 
 class MatchingNetwork(nn.Module):
     def __init__(self, input_dim, q_hid_dim, q_num_layers, project_dim, output_dim, lstm_hid_dim, lstm_num_layers, lstm_project_dim, device):
@@ -660,8 +680,11 @@ def make_directed(graphs):
         dg.remove_edges_from(to_remove)
         pyg = from_networkx(dg)
         if graph.number_of_nodes() == 1:
-            pyg.edge_x = torch.empty((0, 20), dtype=torch.float)
-        
+            try:
+                pyg.edge_x = torch.empty((0, EDGE_DIM), dtype=torch.float)
+            except NameError:
+                pyg.edge_x = torch.empty((0, 20), dtype=torch.float)
+
         directed_graphs.append(pyg)
 
     return directed_graphs
@@ -702,6 +725,10 @@ elif task == 'tg':
 
 print(f'################################### TESTING CHUNK {test_id} ###################################')
 
+# Ensure output directories exist so we can write dst_probs and model_stats later
+os.makedirs('./dst_probs', exist_ok=True)
+os.makedirs('./model_stats', exist_ok=True)
+
 min_size = 1
 train_x, train_seqs, train_y, train_aids, test_x, test_seqs, test_y, test_aids = treefy_sessions(
                                                                                                     sessions=chunked_sessions, 
@@ -719,7 +746,11 @@ non_hot_train_y = [int(np.argmax(train_y[i])) for i in range(len(train_y))]
 
 train_classes = class_seperation(non_hot_train_y, train_x, main_size)
 lump_graphs = generate_lump_graphs(train_x, train_classes)
-unseen_lump = generate_lump_graphs(train_x, {'unseen':non_hot_train_y})
+
+# 'generate_lump_graphs' expects a mapping {class_label: [graph_index, ...]}.
+# For the special 'unseen' bucket, include all training graph indices.
+unseen_indices = list(range(len(train_x)))
+unseen_lump = generate_lump_graphs(train_x, {'unseen': unseen_indices})
 lump_graphs['unseen'] = unseen_lump['unseen']
 
 train_x = make_directed(train_x)
@@ -732,7 +763,7 @@ test_loaders, test_seq_y = generate_tree_sequences_test(test_x, test_seqs, test_
 train_seqs_by_length = {}
 train_lumps_by_length = {}
 train_seq_y_by_length = {}
-for i, seq in enumerate(train_tree_seqs):
+for i, seq in tqdm(enumerate(train_tree_seqs)):
     if len(seq) in train_seqs_by_length:
         train_seqs_by_length[len(seq)].append(seq)
         train_lumps_by_length[len(seq)].append(train_lumps[i])
@@ -752,7 +783,7 @@ for i, seq in enumerate(train_tree_seqs):
 # print(batch_size)
 
 train_dataloaders = []
-for length in train_seqs_by_length:
+for length in tqdm(train_seqs_by_length):
     train_dataset = SeqDataset(train_seqs_by_length[length], train_lumps_by_length[length], train_seq_y_by_length[length])
     
     batch_size = max(2, len(train_y)//8)
@@ -825,7 +856,7 @@ lstm_project_dim = 3750 * 3 * lstm_num_layers
 peak_ra3 = 0.0
 peak_mrr = 0.0
 results = {'ra3':[], 'mrr':[]}
-for _ in range(5):
+for _ in tqdm(range(5)):
     ## seeding everything
     seed_everything(seed=get_truly_random_seed_through_os())
     model = MatchingNetwork(
@@ -852,7 +883,7 @@ for _ in range(5):
 
     max_ra3 = 0.0
     max_mrr = 0.0
-    for epoch in range(1, num_epochs + 1):
+    for epoch in tqdm(range(1, num_epochs + 1)):
         model.train()
         epoch_loss = 0.0
         for dataloader in train_dataloaders:
@@ -896,12 +927,18 @@ for _ in range(5):
     results['ra3'].append(max_ra3)
     results['mrr'].append(max_mrr)
     
+# Print results summary to terminal
+print("Final results:", results)
+try:
+    print(f"Mean RA3: {np.mean(results['ra3']):.4f}, Mean MRR: {np.mean(results['mrr']):.4f}")
+except Exception:
+    pass
+
 pickle.dump(
     results, 
     open(f'./model_stats/{task}_{seed}_{main_size}_{test_id}_gine_seq.pickle', 'wb'), 
     protocol=pickle.HIGHEST_PROTOCOL
-)  
-    
+)
 
 
 

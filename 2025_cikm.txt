@@ -1,0 +1,1519 @@
+ExplorAct: Context-Aware Next Action Recommendations for
+Interactive Data Exploration
+Dinuka Manohara de Zoysa
+The University of Melbourne
+Melbourne, Australia
+bdezoysa@student.unimelb.edu.au
+James Bailey
+The University of Melbourne
+Melbourne, Australia
+baileyj@unimelb.edu.au
+Renata Borovica-Gajic
+The University of Melbourne
+Melbourne, Australia
+renata.borovica@unimelb.edu.au
+Abstract
+Modern data analysis platforms, such as Tableau, Microsoft Power
+BI, Google Looker Studio, Kibana, and Splunk, have democratized
+data exploration by enabling users to interact with data through
+intuitive visual interfaces, eliminating the need for proficiency in
+query languages like SQL. These platforms allow both experts and
+non-experts to perform high-level operations and incrementally
+construct complex analysis workflows. As the volume and com-
+plexity of data grow, assisting users in navigating these workflows
+becomes increasingly important. One promising direction is to
+provide intelligent next-action recommendations that guide users
+through meaningful and efficient exploration paths.
+In this paper, we present ExplorAct, a context-aware next-action
+recommendation framework that leverages historical session logs
+to predict and suggest relevant next steps during data exploration.
+Unlike existing approaches that suffer from scalability issues due
+to log-size-dependent retrieval, ExplorAct achieves constant-time
+inference by employing a deep learning architecture that models
+both the structural and sequential aspects of exploration sessions.
+Through extensive experiments on four real-world datasets, we
+show that ExplorAct consistently outperforms state-of-the-art
+(SOTA) baselines across three core recommendation tasks, while
+maintaining stable and low-latency inference regardless of log size.
+CCS Concepts
+• Information systems → Recommender systems; Query sug-
+gestion; Data analytics; • Mathematics of computing → Ex-
+ploratory data analysis.
+Keywords
+Interactive Data Analysis, Action Recommendation, Graph Isomor-
+phism Networks, Gated Recurrent Units, Evidence Fusion
+ACM Reference Format:
+Dinuka Manohara de Zoysa, James Bailey, and Renata Borovica-Gajic. 2025.
+ExplorAct: Context-Aware Next Action Recommendations for Interactive
+Data Exploration. In Proceedings of the 34th ACM International Conference
+on Information and Knowledge Management (CIKM ’25), November 10–14,
+2025, Seoul, Republic of Korea. ACM, New York, NY, USA, 11 pages. https:
+//doi.org/10.1145/3746252.3761257
+This work is licensed under a Creative Commons Attribution-NonCommercial-
+ShareAlike 4.0 International License.
+CIKM ’25, Seoul, Republic of Korea
+© 2025 Copyright held by the owner/author(s).
+ACM ISBN 979-8-4007-2040-6/2025/11
+https://doi.org/10.1145/3746252.3761257
+1 Introduction
+Modern interactive data analysis (IDA) platforms empower users to
+explore and gain insights from complex datasets. However, as these
+platforms grow in complexity, users — particularly non-experts
+—face increasing challenges in navigating their workflows effi-
+ciently [ 2]. To mitigate this, action recommendation systems have
+emerged as promising tools to guide users by suggesting relevant
+next steps during exploratory analysis. Practical recommendations
+not only accelerate the discovery process but also enhance user
+understanding and decision-making by reducing cognitive and op-
+erational overhead.
+Consider the case of scientists analyzing datasets from multiple
+experimental trials to identify anomalies or validate theoretical pat-
+terns. Recommendations based on previous exploration sessions,
+either their own or those of peers, can foster collaboration and
+knowledge transfer [14 , 17 , 28 ]. Such suggestions serve dual roles:
+encouraging novel exploration while grounding actions in previ-
+ously successful analytical strategies. The result is a more efficient,
+informed, and user-friendly analysis experience.
+Recent work has formalized the next-action prediction prob-
+lem in IDA platforms, particularly within multi-dataset environ-
+ments [ 28 ]. Other efforts have targeted related challenges, such as
+estimating the "interestingness" of query results [ 36 ], or generating
+exploration notebooks that encapsulate analytical intent [ 5 , 25 ],
+which often rely on prior knowledge of the analysis objective and
+are less suited to open-ended exploratory scenarios. Additional lines
+of research focus on explaining user behaviour via interestingness-
+based rationales [10].
+A common abstraction used in state-of-the-art (SOTA) next-
+action recommendation systems is the analysis tree: a hierarchical
+representation of a user’s exploration session, where nodes de-
+note actions and edges encode transitions or dependencies [28 ].
+From these, a context tree is derived to represent the user’s current
+state. This structured representation offers advantages over flat se-
+quences by preserving branching behaviors typical in exploratory
+workflows. Despite this, existing systems face two key limitations
+(depicted in Figure 1):
+1○ Under-utilization of Tree Structures: Prior work largely
+applies simple similarity-based retrieval over context trees, pri-
+marily using 𝑘-nearest neighbors with tree edit distances [28, 36 ].
+Such an approach fails to exploit the rich, hierarchical, and feature-
+annotated nature of these trees, leaving substantial latent informa-
+tion untapped.
+2○ Neglect of Sequential Patterns: While tree structures model
+the structural context of a session, they often overlook the inher-
+ently sequential nature of exploration. The temporal progression
+CIKM ’25, November 10–14, 2025, Seoul, Republic of Korea Dinuka Manohara de Zoysa, James Bailey, and Renata Borovica-Gajic
+of user actions carries important signals for predicting future steps,
+which are under-exploited in current approaches.
+To address these gaps, we propose ExplorAct, a deep learning
+framework for context-aware next-action recommendation in mod-
+ern IDA platforms. Our key idea is to combine the expressive power
+of graph-based representations with sequential modeling, captur-
+ing both the structural context (via context trees) and temporal
+dynamics (via action sequences).
+Similar to the prior work [28 ], we focus on three core recom-
+mendation tasks:
+1○ Action-Type Recommendation: Predicting the next type of
+analytical action a user is likely to perform (e.g., filter, projection).
+2○ Column Recommendation: Suggesting the most relevant
+column(s) for the upcoming action.
+3○ Action-Type and Column Pairing: Jointly predicting action-
+type and associated column, a more fine-grained and practical
+recommendation setting.
+This work makes the following key contributions:
+• Problem Formulation: We formulate next-action recom-
+mendation as a candidate probability prediction task. This
+novel formulation enables us to train on new candidates
+incrementally without restructuring the model architecture.
+• Novel Deep Learning Architecture: We introduce a hybrid
+model combining Graph Isomorphism Networks (GIN) to
+embed structural context and Gated Recurrent Units (GRU)
+to capture sequential dependencies, viewing context trees
+as a sequence of evolving user states. We also provide two
+variants of input encoding strategies.
+• Evidence Fusion via Dempster-Shafer Theory (DST):
+We propose an evidence fusion mechanism to improve rec-
+ommendation robustness across tasks. Each model, trained
+for a specific task, acts as an independent evidence source
+with its own uncertainty. We use DST to systematically com-
+bine these sources, yielding more reliable joint action-type
+and column recommendations.
+• Comprehensive Experimental Validation: Through ex-
+tensive experiments on real-world data sets, we demon-
+strate consistent improvements of up to 16.98% (11.5% avg.),
+22.22% (17.02% avg.), and 20.94% (13.69% avg.) of Recall@3
+for the three recommendation tasks, over the SOTA respec-
+tively. Column recommendation and joint action-type, col-
+umn recommendation tasks show improvements up to 34.38%
+(22.49% avg.), and 13.87% (11.54% avg.) of Mean Recipro-
+cal Rank, respectively. Our model also achieves superior
+generalization and sample efficiency. Notably, the inference
+cost remains constant with respect to session log size, a key
+advantage over existing kNN-based methods, which scale
+poorly due to log-size-dependent retrieval operations. The
+inference time depends only on the maximum context size of
+a context tree sequence. We publish our code to assist future
+research.
+The remainder of this paper is organised as follows. Section 2
+defines the problem formally. Section 3 presents our proposed frame-
+work in detail. Section 4 reports empirical results, followed by a
+discussion. Section 5 reviews related work and background. We
+conclude in Section 6.K-Nearest
+Neighbours
+Learn Latent
+Representations
+Evidence
+Fusion
+Recommendations
+Analysis Tree
+Previous
+Sessions
+Feature
+Vectors
+Context Tree Sequence
+Existing
+Ours
+K-Nearest
+Neighbours
+Learn Latent
+Representations
+Evidence
+Fusion
+Recommendations
+Analysis Tree
+Previous
+Sessions
+Feature
+Vectors
+Context Tree Sequence
+Existing
+Ours
+Figure 1: Existing SOTA vs. ExplorAct
+Table 1: Summary of notations.
+Symbol Definition
+↦
+→ Mapping operator
+𝐴 The set of attributes (columns)
+𝑎 ∈ 𝐴 An attribute/column 𝑎
+𝑂𝑖 The set of rows (records)
+in the 𝑖-th dataset
+𝐷𝑖 = (𝑂𝑖 , 𝐴) The 𝑖-th dataset
+𝐶 The set of all possible columns
+𝐷 = {𝐷𝑖 | 𝑖 = 1, 2, . . . }
+The set of datasets with
+matching attributes (same
+columns, different rows)
+D = (É𝑚
+𝑖=1 𝑂𝑖, 𝐴) The concatenated (É) dataset.
+𝑎(𝐷𝑖 ) The multiset of values for
+attribute 𝑎 in 𝐷𝑖
+𝑎(D) The multiset of values for
+attribute 𝑎 in D
+Δ𝑟 = (𝑜𝑖 , 𝑐)
+𝑜𝑖 ⊆ 𝑂𝑖, 𝑐 ⊆ 𝐶
+The result of an action 𝛼𝑠
+performed on dataset 𝐷𝑖 ;
+𝑟 ∈ Z+ indicates step index
+𝑎(Δ𝑟 ) The multiset of values for
+attribute 𝑎 in Δ𝑟
+𝜁 ∈ 𝑍∗
+𝑍∗ is the set of candidates
+for a recommendation task,
+and 𝜁 is one such candidate
+2 Preliminaries and Problem Definition
+To motivate and formalize our recommendation approach, we begin
+by introducing key concepts that capture user interactions during
+data exploration. We first define the structure of analysis actions,
+which serve as the atomic units of user behavior. Next, we describe
+how sequences of these actions form analysis trees, which represent
+the evolving state of a user’s exploration session. From these trees,
+we extract context trees, substructures that encapsulate the recent
+history leading to a given action, and use them as the primary
+input to our learning model. Finally, we formally define the recom-
+mendation objective. The notations used throughout the paper are
+summarized in Table 1.
+ExplorAct: Context-Aware Next Action Recommendations for Interactive Data Exploration CIKM ’25, November 10–14, 2025, Seoul, Republic of Korea
+Throughout the paper, we use a running example in which users
+explore datasets containing information about age, country, city,
+employment, and COVID-19 vaccination status of surveyed popu-
+lations. The datasets contain the columns: Id, Age, Country, City,
+Employed, and Vaccinated.
+We define analysis actions (Def. 2.1), analysis trees (Def. 2.2),
+and context trees (Def. 2.3) as follows.
+Definition 2.1 (An Analysis Action). An analysis action 𝛼 on a
+dataset 𝐷𝑖 ∈ 𝐷 is a tuple 𝛼 = (𝜏, 𝑎, 𝜅, Ω, Λ) where, 𝑎 ∈ 𝐴, 𝜏 ∈ T , 𝜅 ∈
+{∅} ∪ K, 𝜔 ∈ {∅} ∪ Ω, Λ ∈ {∅} ∪ {(𝑎, 𝛾) | 𝑎 ∈ 𝐴, and 𝛾 ∈ Γ}.
+The set T = {Projection, Filter, Group, Sort} includes all
+possible action types. K includes operators such as =, ≤, >, while
+Ω contains literal values used in filtering operations (e.g., fil-
+tering rows where Country equals "France"). The set Γ =
+{count, min, max, sum, avg} specifies aggregation functions for col-
+umn operations (e.g., avg(Age), count(City)). The component
+Λ pairs columns with these aggregation functions. Note that the
+action type and column are always present, while the other compo-
+nents are optional.
+An example of an action is (Filter, Country, =, "France").
+Henceforth, we refer to analysis actions simply as actions.
+The recommendation task involves suggesting possible compo-
+nents of an action (e.g., column) or combinations of components
+(e.g., action type and column).
+Definition 2.2 (Analysis Tree). Given a dataset 𝐷𝑖 ∈ 𝐷, let Ψ =
+(𝑢0, 𝑈Ψ, 𝐸Ψ) be an analysis tree, where:
+𝑢0 ↦ → Δ0 ↦ → 𝐷𝑖 is the root node; 𝑈Ψ = {𝑢0, . . . , 𝑢𝑟 , . . . } is the finite
+set of nodes, ordered such that 0 < · · · < 𝑟 < . . .; 𝐸Ψ is the set
+of directed edges; Each node 𝑢𝑟 maps to an action result Δ𝑟 i.e.
+𝑢𝑟 ↦ → Δ𝑟 ; A directed edge 𝑒𝑠 = (𝑢𝑟 , 𝑢𝑠 ) ∈ 𝐸Ψ exists if an action 𝛼𝑠
+is performed on Δ𝑟 resulting in Δ𝑠 . Thus, each edge 𝑒𝑠 ↦ → 𝛼𝑠 .
+Continuing the example, Figure 2a illustrates an analysis tree
+representing a user’s exploration session.
+Definition 2.3 (𝛿-Context Tree). Let Ψ = (𝑢0, 𝑈Ψ, 𝐸Ψ) be an analy-
+sis tree. The 𝛿-context tree of an action 𝛼𝑟 is defined as the minimal
+(i.e., smallest connected) sub-tree of Ψ that includes the 𝛿 most
+recent nodes preceding the edge 𝑒𝑟 ↦ → 𝛼𝑟 . Formally, it contains the
+nodes {𝑢𝑟 −𝛿 , 𝑢𝑟 −𝛿+1, . . . , 𝑢𝑟 −1} ⊆ 𝑈Ψ. The corresponding context
+tree is denoted 𝜓 = (𝑈𝜓 , 𝐸𝜓 ). Note that a 𝛿-context tree exists for
+𝛼𝑟 if and only if 𝑟 − 𝛿 ≥ 0.
+Figure 2b illustrates the 3-context tree for action 𝛼7 of the analy-
+sis tree shown in Figure 2a.
+2.1 Problem Definition
+Intuitively, our goal is to estimate the likelihood that a given context
+tree sequence leads to a particular action. Each action corresponds
+to a candidate, which we represent as an object. We recommend
+the top-𝑛 most probable actions based on this likelihood.
+For instance, in recommending columns, each candidate rep-
+resents a different column. As described in the next section, we
+represent these candidates using a graph structure called the Can-
+didate Representative Graph.
+Definition 2.4 (Objective). Given a context tree (Def. 2.3) sequence
+[𝜓1, . . . ,𝜓𝑇 ] and an object 𝜙 (e.g. a graph, a vector, an image etc.)
+representing a candidate 𝜁 ∈ 𝑍 , find a function 𝑓 (·, ·) that esti-
+mates the likelihood that the given sequence leads to the action
+represented by 𝜙, i.e.,
+𝑓 ([𝜓1, . . . ,𝜓𝑇 ], 𝜙) ∈ [0, 1].
+Figure 3 shows a simple context tree sequence based on the
+analysis tree (Fig. 2a).
+3 ExplorAct Framework
+To support intelligent recommendations during data exploration,
+we propose ExplorAct, a framework designed to predict the subse-
+quent analysis action a user is likely to take. ExplorAct leverages
+both the contextual properties of recent user interactions and the se-
+quential behavior inherent in exploratory tasks. The framework in-
+tegrates tree-based and sequence-based modelling with uncertainty
+reasoning to provide accurate and interpretable recommendations.
+We now describe the core components of ExplorAct, including its
+recommendation tasks, overall architecture, and key design choices.
+The action-type recommendation task is denoted as 𝜏-rec, the
+column recommendation task as 𝑎-rec, and the combined action-
+type and column recommendation task as (𝜏, 𝑎)-rec. The user’s
+choice of action-type and the corresponding column are key factors
+that determine their analysis trajectory.
+3.1 Framework Overview
+A high-level overview of the ExplorAct framework is shown in
+Figure 4. The pipeline comprises four core stages: candidate repre-
+sentative object generation, training, evidence fusion, and recom-
+mendation.
+• Candidate Representative Object Generation: Since the prob-
+lem is modeled as a candidate probability prediction task, effec-
+tively representing candidate-specific information is critical. To
+this end, we introduce a simple yet effective method called can-
+didate representative graphs. These graphs capture candidates’
+characteristics, aiding the model in predicting actions from con-
+text sequences.
+• Training: We formulate two types of context tree sequences to
+serve as our model’s input. These sequences are used in super-
+vised training tasks across all three recommendation types (𝜏-rec,
+𝑎-rec, and (𝜏, 𝑎)-rec). The model is trained to learn sequence-
+based patterns that lead to specific candidates.
+• Evidence Fusion: Once the models for the individual tasks are
+trained, we treat each as a source of uncertain evidence. We use
+Dempster-Shafer Theory (DST) to fuse their outputs, generat-
+ing improved predictions for the (𝜏, 𝑎)-rec task. DST enables us
+to combine the strengths of each model while accounting for
+uncertainty in their predictions.
+• Recommendation: Based on the fused candidate probabilities,
+we select the top-𝑛 candidate actions to recommend to the user
+as potential next steps.
+ExplorAct is designed to leverage the hierarchical and contextual
+information in context trees and the temporal patterns in sequences
+of analysis actions. We hypothesize that Graph Isomorphism Net-
+works with Edge-features (GINE)[ 21 , 40 ], a state-of-the-art Graph
+Neural Network (GNN) model, can effectively extract rich, latent
+CIKM ’25, November 10–14, 2025, Seoul, Republic of Korea Dinuka Manohara de Zoysa, James Bailey, and Renata Borovica-Gajicu0
+u1 u7
+u4
+u2
+u5
+u3
+u6
+α1: FILTER by
+Country='France'
+α4: FILTER by
+Age > 35
+α7: SORT by
+Age
+α3: GROUP by
+Vaccinated
+α6: GROUP by
+Employment
+α5: GROUP by
+City
+α2: FILTER by
+Age > 30ID Age Country City Employed Vaccinated
+1 23 France Paris Yes Yes
+5 29 France Lyon Yes Yes
+… … … … … …
+20 30 France Bordeaux No Yes
+25 41 France Toulouse Yes YesID Age Country City Employed Vaccinated
+2 45 USA New York No Yes
+4 52 UK London No Yes
+... … … … … …
+25 41 France Toulouse Yes YesID Age Country City Employed Vaccinated
+10 50 France Marseille No Yes
+15 46 France Nice Yes Yes
+25 41 France Toulouse Yes YesVaccinated Count
+Yes 3Employed Count
+Yes 2
+No 1ID Age Country City Employed Vaccinated
+25 41 France Toulouse Yes Yes
+15 46 France Nice Yes Yes
+10 50 France Marseille No YesID Age Country City Employed Vaccinated
+1 23 France Paris Yes Yes
+2 45 USA New York No Yes
+4 52 UK London No Yes
+… … … … … …
+24 34 Germany Munich No Yes
+25 41 France Toulouse Yes YesCity Count
+Paris 1
+Lyon 1
+Marseille 1
+Nice 1
+Bordeaux 1
+Toulouse 1
+Δ0
+Δ1
+Δ2
+Δ4
+Δ5
+Δ7
+Δ6
+Δ3
+(a) An example analysis tree. Node 𝑢0 represents the initial dataset Δ0. An action 𝛼 𝑗
+on an action result Δ𝑖 represented by node 𝑢𝑖 leads to the action result Δ𝑗 represented
+by node 𝑢𝑗 . See Def. 2.2.u0
+u1 u7
+u4
+u2
+u5
+u6
+α6: GROUP by
+Employment
+u3
+α3: GROUP by
+Vaccinated
+α5: GROUP by
+City
+α7: SORT by
+Age
+α2: FILTER by
+Age > 30
+α1: FILTER by
+Country='France'
+α4: FILTER by
+Age > 35
+depth 0
+depth 3,
+order 1
+depth 3,
+order 0
+(b) The 3-context tree for action 𝛼7 from the analysis
+tree presented in Figure 2a (Def. 2.3). Positional iden-
+tity assignments of nodes 3 and 6 are shown (Sec. 3.3.2).
+Figure 2: Analysis Tree and Context Treeu0
+u1
+u4
+u2
+u5
+u6
+α6: GROUP by
+Employment
+u3
+u0
+u1
+u4
+u2
+u5
+u6
+α6: GROUP by
+Employment
+u3
+u0
+u1
+u4
+u2
+u5
+u3
+α5: GROUP by
+City
+u0
+u1
+u4
+u2
+u5
+u3
+α5: GROUP by
+City
+u0
+u1
+u4
+u2
+u3
+α4: FILTER by
+Age > 35
+u0
+u1
+u4
+u2
+u3
+α4: FILTER by
+Age > 35
+Figure 3: Context Tree Sequence for Action Sequence
+[𝛼4, 𝛼5, 𝛼6].
+representations from context trees. We select GINE due to its demon-
+strated performance on graph isomorphism tasks, which are essen-
+tial for capturing nuanced structural variations in user interaction
+histories. Section 3.2 describes how we construct feature vectors
+for the nodes and edges of the analysis trees to be consumed by the
+GINE layers.
+To model sequential patterns, we employ Gated Recurrent Units
+(GRUs)[ 6 ]. We opt for GRUs instead of Long Short-Term Memory
+(LSTM)[ 18 , 20 ] models due to their lower computational cost[7] and
+the relatively short lengths of analysis action sequences (typically
+up to 25 steps). This combination enables efficient and accurate
+modeling of user exploration behavior.
+3.2 Node and Edge Feature Vectors
+To be processed by GINEs, feature vectors are assigned to nodes
+and edges of analysis trees, with features inherited by context
+trees. ExplorAct employs a simple method for node feature vector
+generation. First, generate feature vectors for each column of the
+action result. Then, concatenate those vectors to form the action
+result vector. Finally, dimensionality is reduced to produce node
+feature vectors. For each column, including those from aggregations
+(count, min, max, sum, avg), we compute a probability vector over
+bins, unique items, or text templates.
+We need to define new columns based on analysis actions
+originating from aggregation functions. For instance, applying a
+count on the City column when grouping by Country creates
+a "City-count" column. Columns generated from aggregation
+functions on different groupings, like "Age-avg" when grouping
+by Country or City, are considered similar. Finding all possible
+columns involves applying aggregation functions on the original
+columns, constrained by their data types.
+Numerical columns are allowed with any of the five aggrega-
+tion functions. Nominal categorical and text columns are limited
+to the count function, while ordinal categorical columns can use
+count, min, and max functions. An example of potential columns
+are ["Age-avg", "City-count", "Employed-count", . . . ].
+3.2.1 Numerical Columns. Original numerical columns, their ag-
+gregated forms, and count aggregations remain numerical. We
+discretize numerical columns into equal-width bins. The bins
+for any original column or its emergent avg, min, and max
+columns are defined on the range [min 𝑎(D), max 𝑎(D) + 𝜖). For
+emergent count columns, the range is 0, max𝑚
+𝑖=1 |𝑎(𝐷𝑖 )| + 𝜖
+
+.
+
+min𝑚
+𝑖=1
+Í𝑥 ∈𝑎 (𝐷𝑖 )
+𝑥 <0
+𝑥,
+
+max𝑚
+𝑖=1
+Í𝑥 ∈𝑎 (𝐷𝑖 )
+𝑥 ≥0
+𝑥
+
++ 𝜖
+
+is the range for
+emergent sum columns. Positive increment choices, 𝜖 > 0, are arbi-
+trary. A range is divided into 𝑏 bins. Then the probability vector of
+a numerical column 𝑎 of an action result Δ𝑟 is
+P𝑎 = 𝑃 (𝐵𝑎
+1 | 𝑎(Δ𝑟 )), 𝑃 (𝐵𝑎
+2 | 𝑎(Δ𝑟 )), . . . , 𝑃 (𝐵𝑎
+𝑏 | 𝑎(Δ𝑟 ))
+with 𝐵𝑎
+𝑖 denoting the i-th bin.
+3.2.2 Categorical Columns. Original categorical columns and min-
+max aggregations of ordinal columns are treated as categorical. We
+can form a probability vector for the unique column values using
+the action result Δ𝑟 and the categorical column 𝑎. (𝑞𝑖 denotes a
+unique value, and |𝑄 | is the count of unique values.)
+P𝑎 = 𝑃 (𝑞1 | 𝑎(Δ𝑟 )), 𝑃 (𝑞2 | 𝑎(Δ𝑟 )), . . . , 𝑃 (𝑞|𝑄 | | 𝑎(Δ𝑟 ))
+3.2.3 Text Columns. We extract a finite set of common patterns,
+or templates, from text values using a rule-based algorithm with
+regular expressions, though other methods can be used. The calcu-
+lated probability vector for a text column 𝑎 in an action result Δ𝑟 is
+ExplorAct: Context-Aware Next Action Recommendations for Interactive Data Exploration CIKM ’25, November 10–14, 2025, Seoul, Republic of KoreaContext Tree
+Sequence
+Extraction
+GRUGRU
+Difference, Hadamard and Concat.
+Linear
+GINE
+GINE
+Candidate Rep. Graphs
+Concat
+MLP
+Unrolled GRUs
+GRUGRU
+GRUGRU
+p
+(Action-type, Column) Prediction
+Model Instance
+Column Prediction
+Model Instance
+Action-type Prediction
+Model Instance
+Recommendations
+GROUP, Country
+FILTER, Age
+FILTER, Vaccinated
+SORT, City
+GROUP, Country
+FILTER, Age
+FILTER, Vaccinated
+SORT, City
+Evidence Fusion
+Analysis Tree
+Figure 4: ExplorAct Overview. Data-flow of the system is shown by the arrows.
+denoted as
+P𝑎 = 𝑃 (𝑡1 | 𝑎(Δ𝑟 )), 𝑃 (𝑡2 | 𝑎(Δ𝑟 )), . . . , 𝑃 (𝑡|𝑇 | | 𝑎(Δ𝑟 ))
+, where 𝑡𝑗 represents a template and |𝑇 | the number of templates.
+3.2.4 Node Feature Vector. For a node 𝑢𝑟 representing an action
+result Δ𝑟 in an analysis tree, the feature vector is given by 𝑣 (Δ𝑟 ) =É
+𝑎∈𝐶 P𝑎 . The feature dimension 𝑑𝑣 can be large. Hence, we apply
+principal component analysis (PCA) to reduce its dimension by
+selecting the top-𝑑𝑣′ components, forming the final node feature
+vector 𝑣 (𝑢𝑟 ) = 𝑣′ (Δ𝑟 ).
+3.2.5 Edge Feature Vectors. For each edge in a context tree, the edge
+feature vector 𝑣𝛼 is formed by concatenating a one-hot encoded
+action-type with a one-hot encoded column.
+3.3 Candidate Representative Graph
+Our objective is to evaluate a context tree sequence’s probabil-
+ity leading to an action represented by a candidate object (2.4).
+Therefore, we construct Candidate Representative Graphs as model-
+understandable representative objects (𝜙) of candidates in recom-
+mendation tasks. The construction involves: (1) Separating context
+trees into candidate sets, (2) Assigning positional identities to con-
+text tree nodes, and (3) Defining the nodes, edges, and feature
+vectors of the Candidate Representative Graph.
+3.3.1 Context Tree Separation. Consider an extracted list of 𝛿-
+context trees for specific actions. Candidate sets are defined based
+on the recommendation task, separating the trees accordingly. For
+an example, assume that the context trees [𝜓1,𝜓2,𝜓3,𝜓4,𝜓5,𝜓6]
+lead to actions,
+[(Filter, Age, >, 30), (Group, Vaccinated, ∅, ∅, {(Id, count)}),
+(Filter, Age, >, 35), (Group, City, ∅, ∅, {(Id, count)}),
+(Group, Employed, ∅, ∅, {(Id, count)}), (Sort, Age)]0,0 2,1
+2,2
+1,1
+3,1
+3,0
+2,0
+1,0
+0,0 2,1
+2,2
+1,1
+3,1
+3,0
+2,0
+1,0
+Context Tree T1
+Candidate Rep. Graph
+0,0
+2,1
+2,2
+1,1
+2,01,0
+0,0
+2,1
+2,2
+1,1
+2,01,0
+0,0
+2,1
+2,21,1
+3,1
+3,0
+2,0
+1,0
+0,0
+2,1
+2,21,1
+3,1
+3,0
+2,0
+1,0
+0,0
+2,1
+2,21,1
+3,1
+3,0
+2,0
+1,0
+Context Tree T2
+0.9...0.40.5 0.9...0.40.5 0.5...0.50.5 0.5...0.50.5 0.1...0.60.5 0.1...0.60.5
+0.3...0.40.9 0.3...0.40.9
+0.3...0.40.9 0.3...0.40.9
+0,0 2,1
+2,2
+1,1
+3,1
+3,0
+2,0
+1,0
+Context Tree T1
+Candidate Rep. Graph
+0,0
+2,1
+2,2
+1,1
+2,01,0
+0,0
+2,1
+2,21,1
+3,1
+3,0
+2,0
+1,0
+Context Tree T2
+0.9...0.40.5 0.5...0.50.5 0.1...0.60.5
+0.3...0.40.9
+0.3...0.40.9
+Figure 5: Construction of a Candidate Representative Graph.
+For 𝜏-rec, the candidates are {Filter, Group, Sort}; for 𝑎-rec, {Age,
+Vaccinated, City}; and for (𝜏, 𝑎)-rec,{(Filter, Age), (Group,
+Vaccinated), (Group, Employed), (Group, City),(Sort, Age)}.
+For 𝜏-rec, trees are divided as {Filter:[𝜓1,𝜓3], Group:[𝜓2,𝜓4,𝜓5],
+Sort:[𝜓6]}. We denote candidate sets for tasks 𝜏-rec, 𝑎-rec and
+(𝜏, 𝑎)-rec as 𝑍 T , 𝑍𝐴, and 𝑍 T ×𝐴.
+3.3.2 Positional Identity Assignment. Positional identity assign-
+ment labels nodes in a context tree to indicate their location. The
+label 𝜌𝑢 is used for a node 𝑢. The node’s position is determined by
+its depth d in the tree and its sequential index i𝑑 at that depth. i𝑑
+is based on the order of the node’s action result. Thus, positional
+identity is a pair 𝜌𝑢 = (d, i𝑑 ). In the 3-context tree (Figure 2b) of
+action 𝛼7, nodes at depth 3 are [𝑢3, 𝑢6], representing [Δ3, Δ6] ac-
+tion results. Indices 0 and 1 are assigned to 𝑢3 and 𝑢6 based on Δ3
+occurring before Δ6. Hence, positional identities for 𝑢3 and 𝑢6 are
+(3, 0) and (3, 1).
+3.3.3 The Candidate Representative Graph. A representative graph
+(Def. 3.1) captures collective structure, node, and edge representa-
+tions of a given set of context trees.
+Definition 3.1 (Candidate Representative Graph). Consider a col-
+lection of context trees wherein nodes are attributed with positional
+CIKM ’25, November 10–14, 2025, Seoul, Republic of Korea Dinuka Manohara de Zoysa, James Bailey, and Renata Borovica-Gajic
+identities. Denote {𝜌1, 𝜌2, . . . , 𝜌𝑛 } as the resultant set of unique po-
+sitional identities. Consequently, a representative graph is defined
+as a graph 𝐺 = (𝑈𝐺 , 𝐸𝐺 ), characterized by 𝑈𝐺 = {𝑢𝜌1 , 𝑢𝜌1 , . . . , 𝑢𝜌𝑛 }
+with 𝑢𝜌𝑖 ↦ → 𝜌𝑖 and ∃(𝑢𝜌𝑖 , 𝑢𝜌 𝑗 ) ∈ 𝐸𝐺 (signifying a directed edge) if
+and only if there exists at least one edge from a node possessing
+the 𝜌𝑖 positional identity to a node possessing the 𝜌 𝑗 positional
+identity within any of the context trees in the given set.
+A representative graph is a connected, directed acyclic graph,
+but not necessarily a tree. Its node and edge feature vectors are
+calculated by averaging feature vectors from context trees with
+matching settings as cited in Def. 3.1. For instance, a node’s feature
+vector with a (3, 1) positional identity label in a 𝐺 results from
+averaging all similar nodes in context trees with (3, 1) positional
+identity. Likewise, an edge’s feature vector in 𝐺, from a node with
+(3, 1) to (4, 3) positional identities, is the average of all similar
+edges in context trees, transitioning from nodes with (3, 1) to (4, 3)
+positional identities (See figure 5).
+3.4 Context Tree Sequence Formulation
+We propose two different context tree sequence formulations, each
+constructed by considering distinct perspectives that lead to the
+next action. They are described as follows.
+3.4.1 State-Perspective Context Tree Sequence: We define this as
+the sequence of context trees corresponding to a series of actions,
+constrained by a specific context size 𝛿. If an action lacks a 𝛿-context
+tree, the largest available context tree is used instead (e.g., if the
+maximum context tree for an action is 5, the 5-context tree is se-
+lected when needing an 8-context tree). This sequence encapsulates
+the user’s state at each action step.
+3.4.2 Multi-Perspective Context Tree Sequence: We retrieve context
+trees of sizes from 1 to 𝛿 for a given action. By ordering these
+trees in descending size, we create this sequence, which presents
+information from oldest to newest, offering multiple perspectives
+on the action.
+These formulations provide a comprehensive approach to mod-
+eling user actions, enhancing the accuracy and relevance of our
+recommendations.
+3.5 Model Function
+This section outlines our model functions. We define Latent(·) for
+processing context trees and graphs, where BN is Batch Normaliza-
+tion, 𝜎 is the ReLU activation, and 𝜎L is the Leaky ReLU activation.
+The Latent(·) updates node features at layer 𝑙, (ℎ(𝑙 )
+𝑢 ) using edge
+features (ℎ𝑢𝑣 ) with the GINE update rule,
+ℎ(𝑙 )
+𝑢 = 𝜎 ©
+«
+BN ©
+«
+MLP ©
+«
+(1 + 𝜖) ℎ(𝑙 −1)
+𝑢 +∑︁
+𝑣 ∈𝑁 (𝑢 )
+𝜎
+
+ℎ(𝑙 −1)
+𝑣 + 𝑊 · ℎ𝑢𝑣
+ª
+®
+¬
+ª
+®
+¬
+ª
+®
+¬
+(1)
+The MLP is a multi-layer perceptron. Global add pooling is applied,
+pooling vectors from each GINE layer are concatenated, then passed
+through a linear projection and a Leaky ReLU to produce the final
+output.
+ℎ(𝑙 )
+𝐺 =∑︁
+𝑢 ∈𝐺
+ℎ(𝑙 )
+𝑢 ℎ⊕
+𝐺 =
+𝐿Ê
+𝑙=1
+ℎ(𝑙 )
+𝐺 ℎ𝐺 = 𝜎L
+
+𝑊𝑝 · ℎ⊕
+𝐺 + 𝑏𝑝
+
+(2)
+Given a sequence of context trees, and a candidate representative
+graph 𝐺𝜁 , we use a dedicated Latent(·) for context trees and another
+Latent(·) for processing 𝐺𝜁 .
+𝑥′
+𝜓 = LatentΨ (𝜓 ) 𝑥𝜁 = Latent𝐺
+
+𝐺𝜁
+
+(3)
+For each 𝑥′
+𝜓 , compute the Hadamard product (⊙), find its difference
+with 𝑥𝜁 , and then concatenate them.
+𝑥𝜓 = 𝑥′
+𝜓 ⊕
+
+𝑥′
+𝜓 − 𝑥𝜁
+
+⊕
+
+𝑥′
+𝜓 ⊙ 𝑥𝜁
+
+(4)
+For a context tree sequence [𝜓1, . . . ,𝜓𝑡 , . . . ,𝜓𝑇 ], we can obtain the
+concatenated hidden representations, [𝑥𝜓1 , . . . , 𝑥𝜓𝑡 , . . . , 𝑥𝜓𝑇 ]. Then,
+for an input vector 𝑥𝜓𝑡 at step 𝑡, and the previous hidden state ℎ𝑡 −1,
+the GRU updates are defined as,
+𝑧𝑡 = 𝑆𝑖𝑔𝑚𝑜𝑖𝑑 (𝑊𝑧 · 𝑥𝑡 + 𝑈𝑧 · ℎ𝑡 −1 + 𝑏𝑧 ) (Update gate)
+𝑟𝑡 = 𝑆𝑖𝑔𝑚𝑜𝑖𝑑 (𝑊𝑟 · 𝑥𝑡 + 𝑈𝑟 · ℎ𝑡 −1 + 𝑏𝑟 ) (Reset gate)
+ℎ′
+𝑡 = tanh(𝑊ℎ · 𝑥𝑡 + 𝑈ℎ · (𝑟𝑡 ⊙ ℎ𝑡 −1) + 𝑏ℎ ) (Prospective hid. state)
+ℎ𝑡 = (1 − 𝑧𝑡 ) ⊙ ℎ𝑡 −1 + 𝑧𝑡 ⊙ ℎ′
+𝑡 (New hid. state)
+In a stacked GRU with 𝐿 layers, let the hidden states from each
+GRU layer at the final step 𝑇 be [ℎ(1)
+𝑇 , . . . , ℎ(𝐿)
+𝑇 ]. We concatenate
+the final hidden states and it is concatenated with the latent rep-
+resentation 𝑥𝜁 of 𝐺𝜁 . Finally, ℎ undergoes a linear layer followed
+by Sigmoid function to estimate the likelihood of 𝜓𝛿 leading to the
+next action of candidate 𝜁 .
+ℎ⊕
+𝑇 =
+𝐿Ê
+𝑙=1
+ℎ(𝑙 )
+𝑇 ℎ = 𝑥𝜁 ⊕ℎ⊕
+𝑇 𝑧 = 𝑊 ·ℎ+𝑏 𝑝 = 𝑆𝑖𝑔𝑚𝑜𝑖𝑑 (𝑧) ∈ [0, 1]
+(5)
+𝑊∗ and 𝑈∗ are learnable weight matrices, 𝑏∗ are learnable bias
+vectors.
+3.6 Training
+Given a set of analysis trees and a context size 𝛿, training proceeds
+as follows:
+• Context tree sequences are generated using a selected formula-
+tion (see Section 3.4).
+• Candidate representative graphs are constructed from context
+trees in the training sequences.
+• Each sequence is paired with each candidate graph 𝐺𝜁 , for 𝜁 ∈ 𝑍∗.
+• A binary label 𝑦 ∈ {0, 1} is assigned: 1 if 𝐺𝜁 matches the true
+candidate of 𝜓𝛿 ; 0 otherwise.
+Model training uses backpropagation with binary cross-entropy
+loss:
+Loss = − 1
+𝑁
+𝑁∑︁
+𝑖=1
+[𝑦𝑖 log 𝑝𝑖 + (1 − 𝑦𝑖 ) log(1 − 𝑝𝑖 )]
+where 𝑝𝑖 is the predicted probability and 𝑦𝑖 the ground truth label.
+3.7 Recommendation Inference
+Given a test sequence of context trees (constructed according to
+one of the defined formulations), we begin by generating pairs
+([𝜓1, . . . ,𝜓𝑇 ], 𝐺𝜁 ) for all candidates 𝜁 ∈ 𝑍∗ obtained from the train-
+ing set. For each of these pairs, we compute the model’s output.
+By selecting the top-𝑛 values among these outputs, we identify
+the top-𝑛 most likely candidates corresponding to the given input
+sequence. These predicted candidates directly correspond to the
+top-𝑛 next action recommendations.
+ExplorAct: Context-Aware Next Action Recommendations for Interactive Data Exploration CIKM ’25, November 10–14, 2025, Seoul, Republic of Korea
+3.8 Evidence Fusion
+Dempster-Shafer Theory (DST) is an evidence-based reasoning
+framework[8, 41 ] that accounts for all possible outcomes in a prob-
+lem space. It is beneficial when handling uncertainty, conflicting
+information, and imprecise data without the need for strict priors
+or assumptions required by methods like Bayesian inference[ 15 , 19 ,
+33 , 34 , 42]. When presented with multiple sources of evidence, one
+can combine them using Dempster’s rule of combination[35 ]. It has
+been extensively utilized in computer vision[9, 31, 32], sensor data
+fusion[1], and multi-modal recommendation[39].
+Let Θ denote the frame of discernment, a finite set of mutually
+exclusive and exhaustive hypotheses. DST defines a basic belief
+assignment (BBA), or mass function, as, 𝑚 : 2Θ → [0, 1] such that
+𝑚(∅) = 0 and Í𝑋 ⊆Θ 𝑚(𝑋 ) = 1. Each value 𝑚(𝑋 ) represents the
+amount of belief assigned exactly to the subset 𝑋 ⊆ Θ. From the
+mass function 𝑚, two key functions are derived; the belief function
+𝐵𝑒𝑙 (𝑋 ) = Í𝑌 ⊆𝑋 𝑚(𝑌 ), representing the total belief that supports
+𝑋 and the plausibility function 𝑃𝑙 (𝑋 ) = Í𝑌 ∩𝑋 ≠∅ 𝑚(𝑌 ), which mea-
+sures how much belief could potentially support 𝑋 . Given two
+independent mass functions 𝑚1 and 𝑚2, Dempster’s rule of combi-
+nation defines a new mass function 𝑚 as:
+𝑚(𝑊 ) =
+Í𝑋 ∩𝑌 =𝑊 𝑚1 (𝑋 ) · 𝑚2 (𝑌 )
+1 − Í𝑋 ∩𝑌 =∅ 𝑚1 (𝑋 ) · 𝑚2 (𝑌 ) for, 𝑍 ≠ ∅
+To refine recommendation confidence, we perform evidence fusion
+over model outputs. We begin by normalizing predicted likelihoods
+into probabilities, dividing each by the total likelihood across all
+candidates. Then, we apply Dempster’s combination rule to fuse be-
+lief masses associated with their respective frames of discernment.
+Θ𝜏 = {∅, Filter, Projection, Group, Sort}, Θ𝑎 = {∅, 𝑎1, . . . , 𝑎|𝐴| }
+This results in probability mass assignments over the joint space
+Θ𝜏 × Θ𝑎 , which are then further combined with the mass function
+from the model that predicts the joint action-type and column
+pairs, represented by Θ(𝜏,𝑎) . Finally, we compute belief values 𝐵𝑒𝑙 (·)
+over these fused outcomes. The resulting belief scores are used to
+determine the top-𝑛 most probable action-type and column pairs,
+which form the final set of recommendations.
+4 Experimental Evaluation
+Our experiments are designed to address the following questions:
+• Do our models achieve higher recommendation accuracy com-
+pared to the state-of-the-art (SOTA) approach?
+• Does evidence fusion improve the accuracy of action-type and
+column-pair recommendations?
+• Do our models achieve constant, sub-second inference times?
+4.1 Experimental Setup
+We evaluate our models using the REACT-IDA next-action recom-
+mendation benchmark [16 ], which consists of four datasets. The
+benchmark includes session logs from 56 cybersecurity analysts
+exploring four network traffic datasets provided by the Honeynet
+Project [37 ] to find security events (e.g. hacking, malware infiltra-
+tions etc.). This benchmark is recognized as the de-facto in evalu-
+ating recommender systems for next action recommendations in
+modern IDA platforms [29].
+Table 2: Number of cases per context tree size.
+Context Size 3 4 5 6 7 8
+Total Cases 1185 918 714 552 435 350
+To simulate realistic exploratory behavior, sessions were user-
+separated and randomly shuffled, mimicking concurrent dataset
+analysis by multiple users. These shuffled sessions were split into
+five balanced folds, ensuring that all sessions from a single user
+appear in only one fold, thereby avoiding bias from repeated pat-
+terns. We generated three such scenarios using different random
+seeds. We report the averaged accuracy values with their standard
+deviations. The number of recorded sessions per dataset is 158, 120,
+96, and 80, respectively. We consider the context sizes ranging from
+3 to 8 and their distribution is shown in Table 2.
+Experiments were conducted on a computing cluster node
+equipped with an 80GB NVIDIA A100 GPU, 8GB of RAM, and
+a 4-core Intel(R) Xeon(R) Gold 6326 CPU (2.90 GHz). The imple-
+mentation code is available at GitHub1.
+4.2 Baselines and Models
+We compare our models against the following baselines:
+• Basic GRU : A sequence-based model that takes one-hot encoded
+action sequences and predicts the next action as a multi-class
+classification task.
+• Basic GINE: A graph-based model that processes 𝛿-context trees
+to predict the next action. Node features are one-hot encodings
+of node numbers within their respective analysis trees.
+• REACT : The current SOTA method for next-action recommenda-
+tion in IDA platforms. It employs a 𝑘-nearest neighbor algorithm
+based on a custom tree edit distance, which incorporates special-
+ized node and edge similarity functions [28].
+We train two versions of our model for 𝜏-rec and 𝑎-rec tasks to
+account for different sequence representations, resulting in four
+model variations for the (𝜏, 𝑎)-rec task. The model variants are:
+• EA-SP: ExplorAct models based on State-Perspective Context Tree
+Sequences.
+• EF-SP: EA-SP models enhanced with Dempster-Shafer Theory
+(DST) evidence fusion (EF). Applicable only to (𝜏, 𝑎)-rec.
+• EA-MP: ExplorAct models based on Multi-Perspective Context Tree
+Sequences.
+• EF-MP: EA-MP models with DST-based evidence fusion. Applica-
+ble only to (𝜏, 𝑎)-rec.
+4.3 Implementation Details
+All models were implemented in Python using PyTorch, PyTorch
+Geometric, and scikit-learn. Training was conducted on four folds,
+with the fifth used for testing, rotating folds across for each scenario.
+For REACT, we used the official implementation and distance
+functions provided in their public GitHub repository [ 16 ]. We did
+not set a custom distance threshold to ensure coverage across all test
+cases. The frequency threshold was set to 0.1, as recommended in
+the original paper. For a given training set, we divide it into 5-folds
+to find optimal 𝑘 for the 𝑘NN algorithm of REACT by choosing the
+𝑘 value that gives the best average accuracy across those folds. 𝑘
+1https://github.com/DinukaManohara/exploract
+CIKM ’25, November 10–14, 2025, Seoul, Republic of Korea Dinuka Manohara de Zoysa, James Bailey, and Renata Borovica-Gajic
+Table 3: R@1 values for 𝜏-rec task (the higher the better). The
+subscripted values are standard deviations.
+𝛿 3 4 5 6 7 8
+GRU .44.06 .43.05 .43.07 .46.05 .46.06 .45.08
+GINE .61.05 .59.04 .56.05 .56.06 .56.06 .55.06
+REACT .61.06 .59.06 .56.07 .53.08 .54.08 .54.06
+EA-SP .62.05 .60.07 .59.07 .57.08 .56.09 .56.10
+EA-MP .64.06 .63.05 .62.06 .62.06 .61.06 .63.07
+Improvement 4.92% 6.78% 10.71% 16.98% 12.96% 16.67%4 6 8
+0.4
+0.6
+0.8
+1.0
+1.2
+ExplorAct SP
+4 6 8
+ExplorAct MP
+Context Size
+Inference Time (s)
+-rec a-rec ( ,a)-rec
+Figure 6: ExplorAct inference times on CPU.
+values are selected from the integer value range
+h j √𝑠𝑖𝑧𝑒
+2
+k
+,
+l 3√𝑠𝑖𝑧𝑒
+2
+mi
+,
+where 𝑠𝑖𝑧𝑒 is the size of the training set.
+All deep learning models were trained using the Adam optimizer
+with a learning rate of 1 × 10−4 and weight decay of 1 × 10−7. Model
+architecture parameters, such as the number of hidden layers and
+dimensionality, were kept consistent across all methods for fairness.
+Each model instance was run five times with different training
+seeds (this is different from scenario seeds).
+4.4 Evaluation Framework
+We evaluate the recommendations from the models against the
+real next actions taken in the analysis sessions and adopt standard
+evaluation metrics commonly used in recommender systems:
+1○ Recall@n (R@n): Measures whether the true next action ap-
+pears within the top-𝑛 recommended actions.
+2○ Mean Reciprocal Rank (MRR): Evaluates the recommenda-
+tion ranking quality, assigning higher weight to correct actions
+ranked earlier.
+We assess performance on three tasks: 𝜏-rec (recommend ac-
+tion type), 𝑎-rec (recommend column pairs), and (𝜏, 𝑎)-rec (joint
+recommendation). Due to the small number of candidates in 𝜏-rec
+(four candidates), we use R@1. For 𝑎-rec and (𝜏, 𝑎)-rec, we report
+both R@3 and MRR. Finally, we measure inference latency on the
+CPU to assess the practical feasibility of deploying this system in
+real-world settings.
+4.5 Results Comparison
+We conduct a comprehensive comparison of ExplorAct and other
+methods across three recommendation tasks, with results show-
+ing its superior performance in realistic scenarios derived from
+benchmark session logs.
+𝜏-rec and a-rec Performance: Both ExplorAct models consis-
+tently outperform naive methods and REACT across all context
+Table 4: R@3 and MRR values for 𝑎-rec task (higher the
+better). The first row of each model contains R@3 values,
+whereas the second contains MRR values. Subscripted values
+are standard deviations.
+𝛿 3 4 5 6 7 8
+GRU .47.04
+.26.03
+.46.05
+.27.03
+.46.05
+.28.03
+.47.05
+.28.03
+.47.05
+.28.04
+.50.06
+.30.04
+GINE .60.04
+.42.04
+.59.04
+.40.03
+.57.04
+.38.03
+.55.04
+.36.03
+.54.05
+.35.04
+.54.05
+.36.04
+REACT .62.05
+.43.04
+.61.06
+.40.03
+.57.06
+.39.04
+.54.06
+.36.04
+.53.04
+.32.04
+.53.06
+.32.03
+EA-SP .63.05
+.43.03
+.62.05
+.42.04
+.61.05
+.40.04
+.59.06
+.38.04
+.56.05
+.37.05
+.57.08
+.38.06
+EA-MP .69.04
+.48.03
+.68.04
+.47.03
+.67.05
+.46.04
+.66.05
+.44.04
+.64.05
+.43.04
+.63.06
+.42.05
+Improvement 11.29%
+11.63%
+11.48%
+17.5%
+17.54%
+17.95%
+22.22%
+22.22%
+20.75%
+34.38%
+18.87%
+31.25%
+Table 5: R@3 and MRR values for (𝜏, 𝑎)-rec task (higher the
+better). The first row of each model contains R@3 values,
+whereas the second contains MRR values. Subscripted values
+are standard deviations.
+𝛿 3 4 5 6 7 8
+GRU .30.03
+.19.02
+.28.04
+.19.03
+.30.05
+.20.03
+.30.05
+.20.03
+.30.05
+.20.04
+.32.05
+.22.04
+GINE .42.04
+.28.03
+.40.04
+.27.03
+.38.04
+.25.03
+.35.04
+.23.03
+.34.05
+.22.03
+.35.05
+.24.03
+REACT .42.04
+.30.03
+.40.05
+.27.03
+.40.05
+.27.03
+.37.06
+.26.05
+.33.05
+.24.04
+.34.05
+.23.04
+EA-SP .43.05
+.28.04
+.41.05
+.28.04
+.39.05
+.27.03
+.37.05
+.25.03
+.37.06
+.24.04
+.38.05
+.26.04
+EA-MP .39.05
+.25.03
+.38.04
+.24.03
+.39.04
+.25.03
+.36.05
+.23.04
+.35.05
+.24.03
+.36.05
+.25.04
+EF-SP .44.05
+.30.03
+.41.05
+.28.04
+.39.07
+.26.05
+.34.08
+.22.05
+.34.06
+.23.04
+.34.09
+.23.06
+EF-MP .48.04
+.33.03
+.44.04
+.31.03
+.43.06
+.30.03
+.42.06
+.28.04
+.39.07
+.27.04
+.40.04
+.27.03
+Improvement 12.95%
+11.51%
+10.88%
+13.2%
+7.72%
+9.13%
+12.9%
+8.54%
+20.94%
+13.87%
+16.76%
+13.04%200 300 400 500 600 700 800 900 1000
+100
+REACT
+ExplorAct-SP
+ExplorAct-MP
+Session Log Size
+Inf. Time (s)-log Scale
+Figure 7: Varying inference times against the session log size
+(Only for context size 3 is depicted. Other context sizes are
+omitted for brevity, and they behave the same).
+sizes. ExplorAct MP has 3.23-12.5% R@1 improvement in 𝜏-rec and
+9.52–14.29% R@3 with 10.53-16.22% MRR improvement in 𝑎-rec
+ExplorAct: Context-Aware Next Action Recommendations for Interactive Data Exploration CIKM ’25, November 10–14, 2025, Seoul, Republic of Korea
+over ExplorAct SP, indicating the added value of multi-perspective
+context sequences for next action-type prediction. ExplorAct MP
+demonstrates 4.92–16.98% R@1 improvement in 𝜏-rec (Table 3) and
+11.29–22.22% R@3 with 11.63-34.38% MRR improvement in 𝑎-rec
+(Table 4) over the SOTA.
+(𝜏, 𝑎)-rec Performance: ExplorAct MP achieves R@3 and MRR
+comparable to REACT. However, with evidence fusion (DST mod-
+els), ExplorAct consistently outperforms REACT across all context
+sizes and scenarios. Notably, ExplorAct MP with evidence fusion
+surpasses REACT by 7.72-20.94% R@3 and 8.54-13.87% MRR, high-
+lighting the impact of evidence fusion on performance (Table 5).
+Effect of DST: ExplorAct MP with evidence fusion (EF-MP) shows
+10.62-20.73% R@3 improvement and 7.52-31.53% MRR improvement
+over its non-evidence fused counterpart (EA-MP) across all test
+configurations.
+Inference Times: Our experiments demonstrate that ExplorAct
+MP achieves sub-second average inference times across all three
+recommendation tasks. ExplorAct SP has sub-second average in-
+ference times for 𝜏-rec and 𝑎-rec while achieving around 1.2𝑠 at
+maximum for (𝜏, 𝑎)-rec inference (Figure 6). In their user testing,
+REACT measured 40𝑠 between consecutive queries, justifying the
+inference times. However, in the information retrieval community,
+the threshold where the users notice the delay in responses is 1𝑠 [3 ],
+strengthening the need for sub-second recommendations. Further-
+more, this demonstrates that the inference time depends on the
+maximum context size of a context tree sequence - inference time
+increases with the context size. In contrast, REACT’s recommenda-
+tion time depends on the session log size. This log-size dependent
+inference time behaviour of REACT is also revealed by our experi-
+ments (presented in Figure 7). 2
+4.6 Discussion
+REACT relies on explicit similarity search, employing tree edit
+distance and 𝑘-nearest neighbors to retrieve context trees that re-
+semble the current session. In contrast, ExplorAct learns latent
+representations of context trees using Graph Isomorphism Net-
+works (GINs), eliminating the need for computationally expensive
+similarity calculations.
+By framing the next-action recommendation task as a candidate
+probability prediction problem, each candidate action is associated
+with a representative object, namely a Candidate Representative
+Graph—ExplorAct supports a unified model architecture across dif-
+ferent tasks. This design obviates the need for task-specific out-
+put layers, allowing for seamless incremental training. As a result,
+adding support for new candidates requires only the construction
+of corresponding representative graphs and training on the paired
+sequences, rather than retraining the entire model from scratch. Fur-
+thermore, as context size increases, the number of available training
+cases decreases (see Table 2). Despite this reduction, ExplorAct con-
+sistently achieves the most substantial accuracy improvements over
+REACT, indicating superior generalization and sample efficiency
+compared to the current state-of-the-art.
+2It is worth noting that the inference times of our REACT implementation are slightly
+higher than those reported in the original paper due to the use of external functions for
+distance computations. However, our analysis focuses on trend behavior rather than
+absolute performance values. This however, has no impact on the accuracy reported.
+5 Related Work
+The recommendation of subsequent actions in data exploration can
+be broadly categorized into two areas: i) SQL/OLAP-based recom-
+mendations, and ii) recommendations within modern Interactive
+Data Analysis (IDA) platforms.
+SQL/OLAP-based recommendations. Recommender systems
+designed for SQL/OLAP environments typically propose complete
+or partial SQL queries [ 17 , 23 , 24 , 38], query templates [ 24 ], spe-
+cific query predicates [17, 27], or complete sessions composed of
+multiple SQL queries [14 ]. Some systems also suggest data items
+that may capture user interest [13 , 26 ] or predict future accesses
+to facilitate data prefetching [ 43]. Identifying interesting regions
+of data is often handled by active learning frameworks, commonly
+referred to as explore-by-example [ 11, 12, 22 , 30 ]. In such systems,
+recommendations are iteratively refined based on user feedback on
+prior suggestions.
+Modern IDA platforms. Within modern IDA platforms, RE-
+ACT [28 ] formalizes the problem setting addressed in this paper
+and introduces the analysis tree session benchmark for evaluating
+next-action recommenders. Another approach [36 ] builds on RE-
+ACT’s methodology to predict interestingness measures that best
+characterize the result sets of analysis actions. A closely related line
+of work involves generating a complete sequence of exploratory
+operations in a Python notebook, based on patterns derived from
+previously authored notebooks [ 5 ]. This approach assumes prior
+knowledge of the types of insights users typically aim to uncover.
+More recently, the explainability of analysis actions has been
+explored using interestingness measures [ 10]. Additionally, some
+user interfaces [ 4 , 25 ] incorporate deep reinforcement learning to
+assist users in exploring datasets within modern IDA platforms.
+6 Conclusion and Future Work
+This paper addressed the challenge of recommending next ana-
+lytical actions in multi-dataset settings on modern IDA platforms.
+We introduced ExplorAct, the first GIN-based recommender for
+context trees, capturing both hierarchical and sequential aspects of
+analysis sessions. Unlike prior retrieval-based methods like REACT,
+our approach models user behavior using context tree sequences
+and combines multiple prediction models for improved accuracy.
+By applying GNN architectures, we uncover latent representa-
+tions of user states—advancing beyond prior similarity-based use of
+context trees. Experiments on real-world datasets show our models
+outperform the state of the art on 𝜏-rec, 𝑎-rec, and (𝜏, 𝑎)-rec by up to
+16.98% R@1, 22.22% R@3 (34.38% MRR), and 20.94% (13.87% MRR),
+respectively, all while maintaining sub-second inference times. Our
+formulation as a candidate probability prediction problem also al-
+lows for efficient incremental training.
+Future work includes exploring positional encoding for identify-
+ing key context trees, leveraging generative models for candidate
+representative graphs, and extending our method to predict opera-
+tors and predicate values, which involve complex semantics and
+large combinatorial spaces.
+Acknowledgments
+We gratefully acknowledge support from the Australian Research
+Council Discovery Early Career Researcher Award DE230100366,
+and L’Oreal-UNESCO For Women in Science 2023 Fellowship.
+CIKM ’25, November 10–14, 2025, Seoul, Republic of Korea Dinuka Manohara de Zoysa, James Bailey, and Renata Borovica-Gajic
+7 GenAI Usage Disclosure
+We utilized the grammar checking tool Grammarly and its AI capa-
+bilities to improve clarity of our texts.
+References
+[1] Michael Aeberhard, Sascha Paul, Nico Kaempchen, and Torsten Bertram. 2011.
+Object existence probability fusion using dempster-shafer theory in a high-level
+sensor data fusion architecture. In 2011 IEEE Intelligent Vehicles Symposium (IV).
+770–775. doi:10.1109/IVS.2011.5940430
+[2] Mohammed Alhamadi, Omar Alghamdi, Sarah Clinch, and Markel Vigo. 2022.
+Data Quality, Mismatched Expectations, and Moving Requirements: The Chal-
+lenges of User-Centred Dashboard Design. In Nordic Human-Computer Interaction
+Conference (Aarhus, Denmark) (NordiCHI ’22). Association for Computing Ma-
+chinery, New York, NY, USA, Article 11, 14 pages. doi:10.1145/3546155.3546708
+[3] Ioannis Arapakis, Xiao Bai, and B. Barla Cambazoglu. 2014. Impact of response
+latency on user behavior in web search. In Proceedings of the 37th International
+ACM SIGIR Conference on Research & Development in Information Retrieval (Gold
+Coast, Queensland, Australia) (SIGIR ’14). Association for Computing Machinery,
+New York, NY, USA, 103–112. doi:10.1145/2600428.2609627
+[4] Ori Bar El, Tova Milo, and Amit Somech. 2019. ATENA: An Autonomous System
+for Data Exploration Based on Deep Reinforcement Learning. In Proceedings of the
+28th ACM International Conference on Information and Knowledge Management.
+ACM, Beijing China, 2873–2876. doi:10.1145/3357384.3357845
+[5] Ori Bar El, Tova Milo, and Amit Somech. 2020. Automatically Generating Data
+Exploration Sessions Using Deep Reinforcement Learning. In Proceedings of
+the 2020 ACM SIGMOD International Conference on Management of Data. ACM,
+Portland OR USA, 1527–1537. doi:10.1145/3318464.3389779
+[6] Kyunghyun Cho, Bart van Merriënboer, Caglar Gulcehre, Dzmitry Bahdanau,
+Fethi Bougares, Holger Schwenk, and Yoshua Bengio. 2014. Learning Phrase
+Representations using RNN Encoder–Decoder for Statistical Machine Translation.
+In Proceedings of the 2014 Conference on Empirical Methods in Natural Language
+Processing (EMNLP), Alessandro Moschitti, Bo Pang, and Walter Daelemans (Eds.).
+Association for Computational Linguistics, Doha, Qatar, 1724–1734. doi:10.3115/
+v1/D14-1179
+[7] Junyoung Chung, Çaglar Gülçehre, Kyunghyun Cho, and Yoshua Bengio. 2014.
+Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling.
+ArXiv abs/1412.3555 (2014).
+[8] A. P. Dempster. 2018. A Generalization of Bayesian Inference. Journal of the Royal
+Statistical Society: Series B (Methodological) 30, 2 (Dec. 2018), 205–232. doi:10.
+1111/j.2517-6161.1968.tb00722.x _eprint: https://academic.oup.com/jrsssb/article-
+pdf/30/2/205/49095334/jrsssb_30_2_205.pdf.
+[9] Lucas Deregnaucourt, Alexis Lechervy, Hind Laghmara, and Samia Ainouz.
+2023. An Evidential Deep Network Based on Dempster-Shafer Theory for Large
+Dataset. In Advances and Applications of DSmT for Information Fusion: Collected
+Works(Volume 5), Florentin Smarandache, Jean Dezert, and Albena Tchamova
+(Eds.). 907–914. https://normandie-univ.hal.science/hal-04448387
+[10] Daniel Deutch, Amir Gilad, Tova Milo, Amit Mualem, and Amit Somech. 2022.
+FEDEX: An Explainability Framework for Data Exploration Steps. Proceedings
+of the VLDB Endowment 15, 13 (Sept. 2022), 3854–3868. doi:10.14778/3565838.
+3565841
+[11] Yanlei Diao. 2015. Explore-By-Example: A New Database Service for Interac-
+tive Data Exploration. In Proceedings of the Second International Workshop on
+Exploratory Search in Databases and the Web. ACM, Melbourne VIC Australia,
+1–1. doi:10.1145/2795218.2795226
+[12] Kyriaki Dimitriadou, Olga Papaemmanouil, and Yanlei Diao. 2016. AIDE:
+An Active Learning-Based Approach for Interactive Data Exploration. IEEE
+Transactions on Knowledge and Data Engineering 28, 11 (Nov. 2016), 2842–2856.
+doi:10.1109/TKDE.2016.2599168
+[13] Marina Drosou and Evaggelia Pitoura. 2013. YmalDB: exploring relational
+databases via result-driven recommendations. The VLDB Journal 22, 6 (Dec.
+2013), 849–874. doi:10.1007/s00778-013-0311-4
+[14] Magdalini Eirinaki and Sweta Patel. 2015. QueRIE reloaded: Using matrix fac-
+torization to improve database query recommendations. In 2015 IEEE Interna-
+tional Conference on Big Data (Big Data). IEEE, Santa Clara, CA, USA, 1500–1508.
+doi:10.1109/BigData.2015.7363913
+[15] Edwin D. El-Mahassni and Karen L. White. 2015. A Discussion of Dempster-Shafer
+Theory and its Application to Identification Fusion. https://api.semanticscholar.
+org/CorpusID:119579601
+[16] GitHub. [n. d.]. TAU-DB/REACT-IDA-Recommendation-benchmark. https:
+//github.com/TAU-DB/REACT-IDA-Recommendation-benchmark. [Accessed
+23-05-2025].
+[17] Apostolos Glenis and Georgia Koutrika. 2021. PyExplore: Query Recommen-
+dations for Data Exploration without Query Logs. In Proceedings of the 2021
+International Conference on Management of Data. ACM, Virtual Event China,
+2731–2735. doi:10.1145/3448016.3452762
+[18] Alex Graves, Abdel-rahman Mohamed, and Geoffrey Hinton. 2013. Speech
+recognition with deep recurrent neural networks. In 2013 IEEE International
+Conference on Acoustics, Speech and Signal Processing. 6645–6649. doi:10.1109/
+ICASSP.2013.6638947
+[19] Muhammad Hafeez. 2011. Application of Dempster Shafer Theory to Assess the
+Status of Sealed Fire in a Cole Mine. https://urn.kb.se/resolve?urn=urn:nbn:se:
+bth-5323
+[20] Sepp Hochreiter and Jürgen Schmidhuber. 1997. Long Short-
+Term Memory. Neural Computation 9, 8 (Nov. 1997), 1735–1780.
+doi:10.1162/neco.1997.9.8.1735 _eprint: https://direct.mit.edu/neco/article-
+pdf/9/8/1735/813796/neco.1997.9.8.1735.pdf.
+[21] Weihua Hu*, Bowen Liu*, Joseph Gomes, Marinka Zitnik, Percy Liang, Vi-
+jay Pande, and Jure Leskovec. 2020. Strategies for Pre-training Graph Neu-
+ral Networks. In International Conference on Learning Representations. https:
+//openreview.net/forum?id=HJlWWJSFDH
+[22] Enhui Huang, Yanlei Diao, Anna Liu, Liping Peng, and Luciano Di Palma. 2023.
+Efficient and robust active learning methods for interactive database exploration.
+The VLDB Journal (Nov. 2023). doi:10.1007/s00778-023-00816-x
+[23] Jiulun Fan, Ju Fan, Guoliang Li, Guoliang Li, Lizhu Zhou, and Lizhu Zhou. 2011.
+Interactive SQL query suggestion: Making databases user-friendly. IEEE Interna-
+tional Conference on Data Engineering (April 2011), 351–362. doi:10.1109/icde.2011.
+5767843 MAG ID: 2108932068 S2ID: abc44137f902af786bb413b24ccb7192f7370a25.
+[24] Eugenie Y Lai, Zainab Zolaktaf, Mostafa Milani, Omar AlOmeir, Jianhao Cao, and
+Rachel Pottinger. 2023. Workload-Aware Query Recommendation Using Deep
+Learning. (2023).
+[25] Tavor Lipman, Tova Milo, and Amit Somech. 2023. ATENA-PRO: Generating
+Personalized Exploration Notebooks with Constrained Reinforcement Learning.
+In Companion of the 2023 International Conference on Management of Data. ACM,
+Seattle WA USA, 167–170. doi:10.1145/3555041.3589727
+[26] Pingchuan Ma, Rui Ding, Shi Han, and Dongmei Zhang. 2021. MetaInsight:
+Automatic Discovery of Structured Knowledge for Exploratory Data Analysis. In
+Proceedings of the 2021 International Conference on Management of Data. ACM,
+Virtual Event China, 1262–1274. doi:10.1145/3448016.3457267
+[27] Antonis Mandamadiotis, Georgia Koutrika, and Sihem Amer-Yahia. 2024. Guided
+SQL-Based Data Exploration with User Feedback. In 2024 IEEE 40th International
+Conference on Data Engineering (ICDE). 4884–4896. doi:10.1109/ICDE60146.2024.
+00372 ISSN: 2375-026X.
+[28] Tova Milo and Amit Somech. 2018. Next-Step Suggestions for Modern Interactive
+Data Analysis Platforms. In Proceedings of the 24th ACM SIGKDD International
+Conference on Knowledge Discovery & Data Mining. ACM, London United King-
+dom, 576–585. doi:10.1145/3219819.3219848
+[29] Tova Milo and Amit Somech. 2020. Automating Exploratory Data Analysis
+via Machine Learning: An Overview. In Proceedings of the 2020 ACM SIGMOD
+International Conference on Management of Data. ACM, Portland OR USA, 2617–
+2622. doi:10.1145/3318464.3383126
+[30] Aurélien Personnaz, Sihem Amer-Yahia, Laure Berti-Equille, Maximilian Fabri-
+cius, and Srividya Subramanian. 2021. DORA THE EXPLORER: Exploring Very
+Large Data With Interactive Deep Reinforcement Learning. In Proceedings of
+the 30th ACM International Conference on Information & Knowledge Manage-
+ment. ACM, Virtual Event Queensland Australia, 4769–4773. doi:10.1145/3459637.
+3481967
+[31] Gregory M. Provan. 1990. The Application of Dempster Shafer Theory to a
+Logic-Based Visual Recognition System. In Uncertainty in Artificial Intelligence,
+Max HENRION, Ross D. SHACHTER, Laveen N. KANAL, and John F. LEMMER
+(Eds.). Machine Intelligence and Pattern Recognition, Vol. 10. North-Holland,
+389–405. doi:10.1016/B978-0-444-88738-2.50037-3 ISSN: 0923-0459.
+[32] Björn Scheuermann and Bodo Rosenhahn. 2011. Feature Quarrels: The Dempster-
+Shafer Evidence Theory for Image Segmentation Using a Variational Framework.
+In Computer Vision – ACCV 2010, Ron Kimmel, Reinhard Klette, and Akihiro
+Sugimoto (Eds.). Springer Berlin Heidelberg, Berlin, Heidelberg, 426–439.
+[33] Scott J Seims. 2009. A Study of Dempster-Shafer’s Theory of Evidence in Comparison
+to Classical Probability Combination. Ph. D. Dissertation. California Polytechnic
+State University, San Luis Obispo, California. doi:10.15368/theses.2009.104
+[34] Kari Sentz and Scott Ferson. 2002. Combination of Evidence in Dempster-Shafer
+Theory. Technical Report SAND2002-0835. Sandia National Labs., Albuquerque,
+NM (US); Sandia National Labs., Livermore, CA (US). doi:10.2172/800792
+[35] Glenn Shafer. 2016. Dempster’s rule of combination. International Journal of
+Approximate Reasoning 79 (2016), 26–40. doi:10.1016/j.ijar.2015.12.009
+[36] Amit Somech, Tova Milo, and Chai Ozeri. 2019. Predicting "What is Interesting"
+by Mining Interactive-Data-Analysis Session Logs. doi:10.5441/002/EDBT.2019.42
+[37] L. Spitzner. 2003. The Honeynet Project: trapping the hackers. IEEE Security
+Privacy 1, 2 (2003), 15–23. doi:10.1109/MSECP.2003.1193207
+[38] Shirin Tahmasebi, Amir H. Payberah, Ahmet Soylu, Dumitru Roman, and Mihhail
+Matskin. 2023. TRANSQLATION: TRANsformer-based SQL RecommendATION.
+In 2023 IEEE International Conference on Big Data (BigData). 4703–4711. doi:10.
+1109/BigData59044.2023.10386277
+[39] Xiaole Wang and Jiwei Qin. 2024. Multimodal recommendation algorithm based
+on Dempster-Shafer evidence theory. Multimedia Tools and Applications 83, 10
+(March 2024), 28689–28704. doi:10.1007/s11042-023-15262-8
+ExplorAct: Context-Aware Next Action Recommendations for Interactive Data Exploration CIKM ’25, November 10–14, 2025, Seoul, Republic of Korea
+[40] Keyulu Xu, Weihua Hu, Jure Leskovec, and Stefanie Jegelka. 2019. How Powerful
+are Graph Neural Networks?. In International Conference on Learning Representa-
+tions. https://openreview.net/forum?id=ryGs6iA5Km
+[41] Roland R. Yager and Liping Liu (Eds.). 2008. Classic Works of the Dempster-Shafer
+Theory of Belief Functions. Studies in Fuzziness and Soft Computing, Vol. 219.
+Springer, Berlin, Heidelberg. doi:10.1007/978-3-540-44792-4
+[42] Vahid Yaghoubi, Liangliang Cheng, Wim Van Paepegem, and Mathias Kersemans.
+2022. A novel multi-classifier information fusion based on Dempster–Shafer the-
+ory: application to vibration-based fault detection. Structural Health Monitoring
+21, 2 (March 2022), 596–612. doi:10.1177/14759217211007130 Publisher: SAGE
+Publications.
+[43] Farzaneh Zirak, Farhana Murtaza Choudhury, and Renata Borovica-Gajic. 2024.
+SeLeP: Learning Based Semantic Prefetching for Exploratory Database Workloads.
+Proc. VLDB Endow. 17, 8 (2024), 2064–2076. doi:10.14778/3659437.3659458

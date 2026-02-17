@@ -1,4 +1,3 @@
-
 # coding: utf-8
 
 import pandas as pd
@@ -7,6 +6,7 @@ import numpy as np
 import ast
 import os
 import operator
+import math
 from .distance import action_distance, display_distance
 
 def get_dict(dict_str):
@@ -58,8 +58,30 @@ class Repository:
         self.displays = pd.read_csv(display_tsv, sep = '\t', escapechar='\\', keep_default_na=False)
         self.actions.action_params= self.actions.action_params.apply(get_dict)
         #self.actions.bag= self.actions.bag.apply(get_dict)
+        # Ensure expected display columns exist (some datasets may be minimal)
+        default_filtering = json.dumps({"list": []})
+        default_grouping = json.dumps({"list": []})
+        default_aggregations = json.dumps([])
+        if 'granularity_layer' not in self.displays.columns:
+            self.displays['granularity_layer'] = '{}'
+        if 'data_layer' not in self.displays.columns:
+            self.displays['data_layer'] = '{}'
+        if 'filtering' not in self.displays.columns:
+            self.displays['filtering'] = default_filtering
+        if 'grouping' not in self.displays.columns:
+            self.displays['grouping'] = default_grouping
+        if 'aggregations' not in self.displays.columns:
+            self.displays['aggregations'] = default_aggregations
+        if 'project_id' not in self.displays.columns:
+            # default to project 1 if not present
+            self.displays['project_id'] = 1
+
+        # Convert stored string representations to dicts where appropriate
         self.displays.granularity_layer= self.displays.granularity_layer.apply(get_dict)
         self.displays.data_layer= self.displays.data_layer.apply(get_dict)
+        self.displays.filtering = self.displays.filtering.apply(get_dict)
+        self.displays.grouping = self.displays.grouping.apply(get_dict)
+        self.displays.aggregations = self.displays.aggregations.apply(get_dict)
         self.schema=schema
         self.data = []
         file_list=os.listdir(raw_datasets)

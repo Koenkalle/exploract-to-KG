@@ -22,8 +22,17 @@ repo = Repository('./session_repositories/actions.tsv','./session_repositories/d
 # %%
 device = torch.device('cuda')
 
-with open(f'./edge/act_five_feats.pickle', 'rb') as fin:
-    act_feats = pickle.load(fin)
+import os
+act_file_candidates = ['./edge/act_feats.pickle', './edge/act_five_feats.pickle']
+act_feats = None
+for p in act_file_candidates:
+    if os.path.exists(p):
+        with open(p, 'rb') as fin:
+            act_feats = pickle.load(fin)
+        print(f"Loaded action features from {p}")
+        break
+if act_feats is None:
+    raise FileNotFoundError("No action features file found. Expected one of: " + ", ".join(act_file_candidates))
 
 with open(f'./edge/col_action.pickle', 'rb') as fin:
     col_feats = pickle.load(fin)
@@ -31,8 +40,16 @@ with open(f'./edge/col_action.pickle', 'rb') as fin:
 with open(f'./edge/cond_action.pickle', 'rb') as fin:
     cond_feats = pickle.load(fin)
 
-with open(f'./display_feats/display_feats.pickle', 'rb') as fin:
-    display_feats = pickle.load(fin)
+# Load display_feats if available (optional, for backward compatibility)
+display_feats = None
+display_feats_path = './display_feats/display_feats.pickle'
+import os
+if os.path.exists(display_feats_path):
+    with open(display_feats_path, 'rb') as fin:
+        display_feats = pickle.load(fin)
+    print(f"Loaded display features from {display_feats_path}")
+else:
+    print(f"[INFO] {display_feats_path} not found, using PCA features only")
 
 with open(f'./display_feats/display_pca_feats_{9999}.pickle', 'rb') as fin:
     display_pca_feats = pickle.load(fin)
@@ -510,5 +527,5 @@ pickle.dump(
     results, 
     open(f'./model_stats/{task}_{seed}_{main_size}_{test_id}_hot_lstm.pickle', 'wb'), 
     protocol=pickle.HIGHEST_PROTOCOL
-)  
+)
 

@@ -1,0 +1,1 @@
+{"head": {"vars": ["var1", "var2", "var4"]}, "results": {"bindings": [{"var1": {"type": "uri", "value": "http://www.wikidata.org/entity/Q2898913"}, "var2": {"xml:lang": "es", "type": "literal", "value": "Reposter\u00eda de Espa\u00f1a"}, "var4": {"datatype": "http://www.w3.org/2001/XMLSchema#integer", "type": "literal", "value": "2"}}]}}

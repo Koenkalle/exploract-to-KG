@@ -1,0 +1,1 @@
+{"head": {"vars": ["var1", "var2", "var3"]}, "results": {"bindings": [{"var1": {"type": "uri", "value": "http://www.wikidata.org/entity/Q3766"}, "var2": {"datatype": "http://www.w3.org/2001/XMLSchema#dateTime", "type": "literal", "value": "-2499-01-01T00:00:00Z"}, "var3": {"xml:lang": "ar", "type": "literal", "value": "\u062f\u0645\u0634\u0642"}}]}}

@@ -12,23 +12,44 @@ from sklearn.decomposition import PCA
 from lib.utilities import Repository
 from sklearn.neighbors import BallTree
 import zss
+import os
 
 
 
 repo = Repository('./session_repositories/actions.tsv','./session_repositories/displays.tsv','./raw_datasets/')
 
 
-with open(f'./edge/act_five_feats.pickle', 'rb') as fin:
-    act_feats = pickle.load(fin)
+act_file_candidates = ['./edge/act_feats.pickle', './edge/act_five_feats.pickle']
+act_feats = None
+for p in act_file_candidates:
+    if os.path.exists(p):
+        with open(p, 'rb') as fin:
+            act_feats = pickle.load(fin)
+        print(f"Loaded action features from {p}")
+        break
+if act_feats is None:
+    raise FileNotFoundError("No action features file found. Expected one of: " + ", ".join(act_file_candidates))
 
 with open(f'./edge/col_action.pickle', 'rb') as fin:
     col_feats = pickle.load(fin)
 
-with open(f'./display_feats/display_feats.pickle', 'rb') as fin:
-    display_feats = pickle.load(fin)
+# Load display_feats if available (optional, for backward compatibility)
+display_feats = None
+display_feats_path = './display_feats/display_feats.pickle'
+if os.path.exists(display_feats_path):
+    with open(display_feats_path, 'rb') as fin:
+        display_feats = pickle.load(fin)
+    print(f"Loaded display features from {display_feats_path}")
+else:
+    print(f"[INFO] {display_feats_path} not found, using PCA features only")
 
-with open(f'./display_feats/display_pca_feats.pickle', 'rb') as fin:
+# Support both legacy 'display_pca_feats.pickle' and new '_9999' suffix
+display_pca_path = './display_feats/display_pca_feats.pickle'
+if not os.path.exists(display_pca_path):
+    display_pca_path = './display_feats/display_pca_feats_9999.pickle'
+with open(display_pca_path, 'rb') as fin:
     display_pca_feats = pickle.load(fin)
+print(f"Loaded display PCA features from {display_pca_path}")
 
 together_feats = {}
 for key in act_feats:
@@ -511,6 +532,6 @@ pickle.dump(
     protocol=pickle.HIGHEST_PROTOCOL
 )
 
-        
+
 
 
