@@ -44,7 +44,7 @@ wikidata_dataset/
 │   ├── actions.tsv          # Query transformation actions (147 actions)
 │   └── displays.tsv         # Simulated query result states (177 displays)
 ├── raw_datasets/
-│   └── 1.tsv                # Dummy graph data representation
+│   └── 1.tsv                # Dummy graph data  representation (not used)
 ├── raw_query_results/
 │   └── display_*.json       # Cached SPARQL query results from Wikidata
 ├── display_feats/
