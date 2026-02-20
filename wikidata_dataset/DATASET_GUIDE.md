@@ -45,17 +45,26 @@ wikidata_dataset/
 │   └── displays.tsv         # Simulated query result states (177 displays)
 ├── raw_datasets/
 │   └── 1.tsv                # Dummy graph data representation
+├── raw_query_results/
+│   └── display_*.json       # Cached SPARQL query results from Wikidata
 ├── display_feats/
-│   └── display_pca_feats_9999.pickle    # 181-dim node embeddings
+│   ├── display_pca_feats_9999.pickle    # 181-dim PCA-reduced node embeddings
+│   ├── raw_display_feats.pickle         # Raw features before PCA
+│   ├── raw_query_status.json            # Live vs fallback status per display
+│   └── display_queries.json             # Display ID → SPARQL query mapping
 ├── edge/
-│   ├── act_feats.pickle            # action type one-hot (dynamic dims; legacy act_five_feats.pickle also provided)
-│   ├── col_action.pickle                # predicate one-hot
-│   └── cond_action.pickle               # condition one-hot
+│   ├── act_feats.pickle            # Action type one-hot (dynamic dims)
+│   ├── act_five_feats.pickle       # Legacy action features (for compatibility)
+│   ├── col_action.pickle           # Predicate one-hot
+│   └── cond_action.pickle          # Condition one-hot
 ├── chunked_sessions/
 │   ├── unbiased_seed_20250212.pickle    # Train/test split v1
 │   └── unbiased_seed_20250214.pickle    # Train/test split v2
-├── run.py                   # Wrapper script for running models
-└── README_WIKIDATA.md       # Dataset notes
+├── model_stats/                     # Output: model results
+├── dst_probs/                       # Output: prediction probabilities
+├── DATASET_GUIDE.md                 # This guide
+├── FEATURE_EXTRACTION.md            # Feature extraction documentation
+└── README_WIKIDATA.md               # Dataset notes
 ```
 
 ### Key Data Files
@@ -111,21 +120,26 @@ display_id | session_id | query_index
 **Node Features** (`display_pca_feats_9999.pickle`):
 - 181-dimensional embeddings per display
 - Represents the result/state of a query
-- Generated as random vectors (in real data: PCA-reduced query result embeddings)
+- **Extracted from actual SPARQL query results** via live Wikidata endpoint queries
+- Features computed from result bindings (numeric stats, categorical histograms)
+- PCA-reduced from variable-length raw features to fixed 181 dimensions
+- See `FEATURE_EXTRACTION.md` for detailed methodology
 - Format: `{display_id: np.array([...181 dims...])}` 
 
 **Edge Features** (action metadata):
-- `act_feats.pickle`: one-hot encoding for action type (number of classes depends on extracted action types)
+- `act_feats.pickle`: One-hot encoding for action type
+  - Dimensions depend on extracted action types (filter, join, projection, etc.)
   - Format: `{action_id: np.array([...])}`
-  - For backward compatibility the generator also writes `act_five_feats.pickle`.
+  - Legacy `act_five_feats.pickle` also provided for compatibility
 
-- `col_action.pickle`: 8-dim one-hot for predicate
-  - Covers: P31 (instance of), P625 (coordinates), P27 (country), P17 (country), P580/582 (dates), P585 (point in time), P18 (image)
-  - Format: `{action_id: np.array([...8 dims...])}`
+- `col_action.pickle`: One-hot for predicate/column
+  - Dimensions depend on predicates extracted from queries
+  - Common predicates: P31 (instance of), P625 (coordinates), P27 (country), etc.
+  - Format: `{action_id: np.array([...])}`
 
-- `cond_action.pickle`: 8-dim one-hot for condition/operator
-  - Covers: comparison operators, FILTER types
-  - Format: `{action_id: np.array([...8 dims...])}`
+- `cond_action.pickle`: One-hot for condition/operator
+  - Covers comparison operators, FILTER types
+  - Format: `{action_id: np.array([...])}`
 
 #### 4. Train/Test Splits (`chunked_sessions/`)
 
@@ -161,10 +175,10 @@ In ExplorAct paper terminology:
 |---|---|
 | **Analysis Tree (Ψ)** | SPARQL query session progression |
 | **Action (α)** | SPARQL query transformation (filter, join, etc.) |
-| **Result (Δᵣ)** | Simulated query result (represented by display_id) |
+| **Result (Δᵣ)** | Query result state (represented by display_id) |
 | **δ-Context Tree** | Last δ queries in sequence |
-| **Node Feature** | Query result embedding (181-dim) |
-| **Edge Feature** | Query operation metadata (20-dim combined) |
+| **Node Feature** | Query result embedding (181-dim, from live results) |
+| **Edge Feature** | Query operation metadata (dynamic dims) |
 
 ### Prediction Tasks
 
@@ -172,15 +186,15 @@ Given the last δ queries (context tree), predict the next query operation:
 
 1. **τ-rec (Action-Type Recommendation)**
    - Predict: Which type of operation? (Filter, Join, Projection, etc.)
-   - Features: Action type one-hot (12-dim)
+   - Features: Action type one-hot (dynamic dims based on extracted types)
 
 2. **a-rec (Column/Predicate Recommendation)**
    - Predict: Which predicate? (P31, P625, P27, etc.)
-   - Features: Predicate one-hot (8-dim)
+   - Features: Predicate one-hot (dynamic dims based on extracted predicates)
 
 3. **(τ,a)-rec (Joint Recommendation)**
    - Predict: Which operation AND which predicate?
-   - Features: Concatenated (12 + 8 = 20-dim)
+   - Features: Concatenated action + predicate one-hots
 
 ---
 
@@ -188,7 +202,7 @@ Given the last δ queries (context tree), predict the next query operation:
 
 ### NO Logic Error Filtering
 
-Unlike the original REACT-IDA benchmark dataset, **this dataset has no hardcoded error display IDs**. The REACT-IDA dataset includes a list of ~40 display IDs that represent error states in cybersecurity logs.
+Unlike the original REACT-IDA benchmark dataset, this dataset has no hardcoded error display IDs. The REACT-IDA dataset includes a list of ~40 display IDs that represent error states in cybersecurity logs.
 
 **Always pass empty list when using this dataset:**
 
@@ -199,9 +213,6 @@ logic_error_displays=[]  # Disable error filtering for Wikidata dataset
 
 This is already handled in the ExplorAct scripts. To verify:
 
-```bash
-grep "logic_error_displays=\[\]" /path/to/ea_sp.py
-```
 
 ---
 
@@ -210,17 +221,20 @@ grep "logic_error_displays=\[\]" /path/to/ea_sp.py
 ### Quick Start
 
 ```bash
+# From wikidata_dataset directory, run models using parent scripts
 cd /home/kasper/Reps/exploract/wikidata_dataset
 
 # Single-Path Model (EA-SP) - Action Type Prediction
-python run.py ea_sp act 20250212 5 0
+python ../ea_sp.py act 20250212 5 0
 
-# Multi-Path Model (EA-MP) - Column Prediction
-python run.py ea_mp col 20250212 5 0
+# Multi-Path Model (EA-MP) - Column Prediction  
+python ../ea_mp.py col 20250212 5 0
 
 # Baseline - Tree Edit Distance (REACT)
-python run.py react 20250212 5 0
+python ../react.py 20250212 5 0
 ```
+
+**Note**: The scripts automatically use relative paths, so running from within the `wikidata_dataset/` directory ensures they find the correct data files.
 
 ### Model Selection
 
@@ -236,6 +250,7 @@ python run.py react 20250212 5 0
 - **seed**: Random seed (integer, e.g., 20250212)
 - **main_size**: Context size (1-8, typical 5-6)
 - **test_id**: Project to hold out for testing (0-3)
+
 
 ### Expected Output
 
@@ -264,7 +279,8 @@ dst_probs/
 | **Max Display ID** | 177 |
 | **Max Action ID** | 147 |
 | **Queries per Session** | 3-5 (varies) |
-| **Feature Dimensions** | 181 (nodes) + 20 (edges combined) |
+| **Node Feature Dims** | 181 (PCA-reduced) |
+| **Edge Feature Dims** | Dynamic (action types + predicates) |
 
 ---
 
@@ -274,10 +290,11 @@ dst_probs/
 |---|---|---|
 | **Domain** | Cybersecurity logs | Wikidata SPARQL queries |
 | **Operations** | Packet filtering, aggregation | Graph query transformations |
-| **Error States** | Yes (40 hardcoded IDs) | No (clean data) |
+| **Error States** | Yes (40 hardcoded IDs) | No (clean data, but "wrong" queries) |
 | **Display IDs** | 427-4067 | 1-177 |
 | **Data Volume** | ~1000s of actions | 147 actions |
 | **Sessions** | Synthetic user interaction logs | Real SPARQL query logs |
+| **Node Features** | From packet data | From live SPARQL query results |
 
 ---
 

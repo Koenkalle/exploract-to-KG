@@ -2,158 +2,169 @@
 
 ## Overview
 
-The node features (181-dimensional embeddings) are extracted from the **SPARQL query structure** following the ExplorAct paper's methodology. Unlike random initialization, these features encode actual query characteristics.
+The node features (181-dimensional embeddings) are extracted from **actual SPARQL query execution results** against the Wikidata endpoint. This follows the ExplorAct paper's methodology of encoding result set characteristics rather than just query structure.
 
 ## Feature Extraction Pipeline
 
-### 1. SPARQL Query Analysis
+### 1. Live Query Execution
 
-For each query in a session, we extract:
+For each query in a session, we:
+
+1. **Execute the query** against the Wikidata SPARQL endpoint (`https://query.wikidata.org/sparql`)
+2. **Cache the results** in `raw_query_results/display_{id}.json` for reproducibility
+3. **Extract features** from the actual result bindings
 
 ```python
-# Query components extracted
-- SELECT variables: ?x, ?label, ?date, etc.
-- Triple patterns: ?x P31 Q5, ?x P625 ?coords
-- Predicates: P31 (instance of), P625 (coordinates), P27 (country), etc.
-- Entity classes: Q5 (human), Q131681 (actor), etc.
-- FILTER constraints: LANG(?label) = "en", ?date > 2000
-- OPTIONAL clauses: OPTIONAL { ?x P18 ?image }
-- UNION clauses: UNION { ... }
-- LIMIT/OFFSET: LIMIT 100, OFFSET 50
+# Run with live query execution:
+python create_wikidata_dataset.py --output wikidata_dataset --live
+
+# Use only cached results (no network calls):
+python create_wikidata_dataset.py --output wikidata_dataset --live --cache-only
 ```
 
-### 2. Feature Generation (7 feature groups)
+### 2. Result Caching
 
-Each query generates 181-dimensional features by computing 7 feature groups (50-dimensional each, plus padding):
+Query results are cached to disk to avoid repeated API calls:
 
-#### Group 1: Query Complexity Features
-- Encodes the structural complexity of the query
-- Computed from: `num_triple_patterns * 10 + num_filters * 5 + optionals * 3 + unions * 5`
-- 50-bin histogram showing complexity distribution
-
-Example:
-- Simple query (1 pattern, 1 filter): Low complexity scores
-- Complex query (5 patterns, 3 filters, 2 optionals): High complexity scores
-
-#### Group 2: Result Cardinality Estimation
-- Estimates how many results the query returns
-- Based on:
-  - LIMIT clause value (if present)
-  - Number of entity classes in query (affects result set size)
-  - Query structure (joins typically reduce cardinality)
-- Log-scale binning to capture range from 1 to 100K+ results
-
-Example:
-- `SELECT ?x WHERE { ?x P31 Q5 }` → ~6 million humans → High cardinality
-- `SELECT ?x WHERE { ?x P31 Q5 LIMIT 100 }` → 100 results → Low cardinality
-
-#### Group 3: Predicate Diversity
-- Encodes which Wikidata predicates are used
-- Predicates are hashed to bins based on property number
-- Multiple predicates can contribute to same bins (sparse representation)
-
-Common predicates:
-- P31: instance of
-- P625: coordinate location
-- P27: country of citizenship
-- P17: country
-- P580/P582: start/end time
-- P585: point in time
-- P18: image
-
-#### Group 4: Entity Class Distribution
-- Encodes which Wikidata entity classes appear
-- Entity classes hashed similarly to predicates
-- Q5 (human), Q131681 (actor), Q6581097 (male), etc.
-
-Example:
-- Query looking for "human scientists": Both Q5 and class distributions active
-- Query looking for "geographic locations": Q2221906 (city) and P625 (coordinates)
-
-#### Group 5: Filter Constraint Distribution
-- Encodes complexity of FILTER clauses
-- Counts total characters in filters (linguistic constraint)
-- Binned to show presence and intensity of constraints
-
-Example:
-- No FILTER: All bins weighted equally
-- `FILTER (LANG(?label) = "en")`: Moderate constraint
-- Complex FILTER with multiple conditions: High constraint score
-
-#### Group 6: Variable/OPTIONAL/UNION Usage
-- Encodes result structure complexity
-- Counts number of variables, OPTIONAL clauses, UNIONs
-- Important for understanding result heterogeneity
-
-Example:
-- Simple: Few variables, no optionals → Low score
-- Complex: Many variables, optional branches, union alternatives → High score
-
-#### Group 7: Temporal Signature
-- Encodes temporal aspects of query
-- Presence of temporal predicates: P580, P582, P585, P813
-- Temporal constraints in FILTER clauses
-
-Example:
-- Query about "scientists born in 1900": Temporal predicates present
-- Query about "current population": Temporal filters present
-
-### 3. Feature Normalization
-
-Each 50-bin group is:
-1. **Normalized to probability distribution**: `bins / sum(bins)`
-2. **Concatenated**: All 7 groups stacked (350+ dimensions)
-3. **Truncated to 181 dimensions**: Following PCA practice from paper
-
-### 4. Deterministic Feature Generation
-
-Features are deterministic based on display_id:
-- `np.random.seed(display_id)` ensures same query always gets same features
-- Different queries get different seeds → different features
-- Reproducible across runs
-
-## Examples
-
-### Session 1: Simple to Complex Query Evolution
-
-**Query 1** (Display 1):
-```sparql
-SELECT ?x WHERE { ?x P31 Q5 }
 ```
-Features: 
-- Complexity: Low (1 pattern, 0 filters)
-- Cardinality: Very high (6M humans)
-- Predicates: P31 only
-- Classes: Q5 only
-- No filters, no optionals
+raw_query_results/
+├── display_1.json     # SPARQL JSON result format
+├── display_2.json
+├── display_10.json
+└── ...
+```
 
-**Query 2** (Display 2):
-```sparql
-SELECT ?x ?label WHERE { 
-  ?x P31 Q5
-  OPTIONAL { ?x rdfs:label ?label FILTER (LANG(?label) = "en") }
+Each cached file contains the standard SPARQL JSON result format:
+```json
+{
+  "head": {"vars": ["var3", "var4", "var6", "var8"]},
+  "results": {
+    "bindings": [
+      {
+        "var3": {"type": "literal", "value": "PeerTube", "xml:lang": "af"},
+        "var4": {"type": "uri", "value": "http://www.wikidata.org/entity/Q50938515"},
+        "var6": {"type": "literal", "value": "Linux"},
+        "var8": {"type": "literal", "value": "GNU Affero General Public License..."}
+      },
+      ...
+    ]
+  }
 }
 ```
-Features:
-- Complexity: Medium (1 pattern, 1 filter, 1 optional)
-- Cardinality: Very high (still 6M + optional labels)
-- Predicates: P31, rdfs:label
-- Filter encoding: Present
-- Optional count: 1
 
-**Query 3** (Display 3):
+### 3. Feature Extraction from Results
+
+For each result variable in the query response, we compute summary features:
+
+#### Numeric Variables
+When a variable contains mostly numeric values, we compute statistical summaries:
+- **min, max, mean, std, median, 75th percentile**
+- Values are log-transformed to handle large ranges
+- Produces 6 features per numeric variable (padded to 8)
+
+Example: `?population` → [log(min), log(max), log(mean), log(std), log(median), log(p75), 0, 0]
+
+#### Categorical/Text Variables
+When a variable contains non-numeric values, we create a frequency histogram:
+- Values are hashed into 10 bins
+- Frequencies are normalized to sum to 1.0
+- Captures the distribution of unique values
+
+Example: `?label` with many labels → 10-bin normalized histogram
+
+### 4. Raw Feature Vector Construction
+
+The extraction produces a variable-length raw feature vector:
+```python
+# Per-variable features concatenated
+raw_vec = [
+    var1_feats,  # 8 or 10 dims depending on type
+    var2_feats,
+    var3_feats,
+    ...
+]
+```
+
+### 5. PCA Reduction to 181 Dimensions
+
+After all displays are processed:
+
+1. **Pad all vectors** to the same length (max across all displays)
+2. **Standardize** using `StandardScaler` (zero mean, unit variance)
+3. **Apply PCA** to reduce to 181 dimensions (or fewer if n_samples < 181)
+4. **Pad output** to exactly 181 dimensions if needed
+
+```python
+scaler = StandardScaler()
+mat_scaled = scaler.fit_transform(mat)
+pca = PCA(n_components=min(181, n_samples, n_features))
+mat_pca = pca.fit_transform(mat_scaled)
+```
+
+### 6. Fallback: Query Structure Features
+
+When live execution fails or returns empty results, we fall back to **structure-based features** extracted from the query text:
+
+| Group | Description | Extraction Method |
+|-------|-------------|-------------------|
+| 1. Complexity | Query structural complexity | `patterns*10 + filters*5 + optionals*3 + unions*5` |
+| 2. Cardinality | Estimated result size | Log-scale bins from LIMIT clause or class count |
+| 3. Predicates | Property diversity | Hash P-numbers to 50 bins |
+| 4. Classes | Entity class distribution | Hash Q-numbers to 50 bins |
+| 5. Filters | Constraint complexity | Character count in FILTER clauses |
+| 6. Optionals | Result structure complexity | Variable + OPTIONAL + UNION counts |
+| 7. Temporal | Time-related features | Presence of P580/P582/P585/P813 |
+
+The status of each display (live vs fallback) is recorded in `display_feats/raw_query_status.json`.
+
+## Example: Feature Extraction from Live Results
+
+### Query (Display 10)
 ```sparql
-SELECT ?x ?label WHERE { 
-  ?x P31 Q5
-  OPTIONAL { ?x rdfs:label ?label FILTER (LANG(?label) = "en") }
-  LIMIT 100000
+SELECT ?var3 ?var4 ?var6 ?var8 WHERE {
+  ?var4 wdt:P31 wd:Q7397 ;
+        rdfs:label ?var3 ;
+        wdt:P306 ?var5 ;
+        wdt:P275 ?var7 .
+  ?var5 rdfs:label ?var6 .
+  ?var7 rdfs:label ?var8 .
+  FILTER(LANG(?var3) != LANG(?var6))
+}
+LIMIT 5000
+```
+
+### Cached Result (truncated)
+```json
+{
+  "head": {"vars": ["var3", "var4", "var6", "var8"]},
+  "results": {
+    "bindings": [
+      {
+        "var3": {"xml:lang": "af", "type": "literal", "value": "PeerTube"},
+        "var4": {"type": "uri", "value": "http://www.wikidata.org/entity/Q50938515"},
+        "var6": {"type": "literal", "value": "Linux"},
+        "var8": {"type": "literal", "value": "GNU Affero General Public License..."}
+      },
+      ...
+    ]
+  }
 }
 ```
-Features:
-- Complexity: Medium (same as Query 2 structure)
-- Cardinality: Medium (100K LIMIT applied)
-- Other features: Similar to Query 2
-- Key difference: Cardinality bin changes
+
+### Extracted Features
+For each variable in the result:
+
+| Variable | Type | Feature Extraction |
+|----------|------|-------------------|
+| `var3` | Text/Literal | 10-bin hash histogram of label values |
+| `var4` | URI | 10-bin hash histogram of entity URIs |
+| `var6` | Text/Literal | 10-bin hash histogram of OS names |
+| `var8` | Text/Literal | 10-bin hash histogram of license names |
+
+Raw vector: ~40 dimensions (10 bins × 4 variables)
+After PCA: 181 dimensions
+
+TODO: PCA legacy dims 
 
 ## Relationship to ExplorAct Paper
 
@@ -161,42 +172,45 @@ The ExplorAct paper (Section 3.2) describes node feature extraction:
 
 > "For each column in an action result, generate probability vectors based on column type"
 
-For Wikidata:
-- **Numerical columns** → Predicate value ranges (coordinates, counts)
-- **Categorical columns** → Entity classes, Wikidata properties
-- **Text columns** → Language templates, labels
-- **Temporal columns** → Date/time ranges
+For Wikidata, we implement this by **executing queries and analyzing actual results**:
 
-Our feature extraction simulates this by:
-1. Parsing SPARQL structure (instead of executing queries)
-2. Creating probability bins for each feature type
-3. Building histogram features from query characteristics
-4. Normalizing to probability distributions
-5. Concatenating and PCA-reducing to 181 dimensions
+| Paper Concept | Wikidata Implementation |
+|---------------|------------------------|
+| Numerical columns | Statistical summaries (min, max, mean, std, median, p75) with log-transform |
+| Categorical columns | 10-bin hash histograms of unique values |
+| Text columns | 10-bin hash histograms of string values |
+| PCA reduction | StandardScaler + PCA to 181 dimensions |
 
-## Why Not Random Features?
+TODO: PCA legacy dims 
 
-Random features would:
-- ❌ Lose query structure information
-- ❌ Make session evolution uninterpretable
-- ❌ Reduce model's ability to learn patterns
-- ❌ Not match paper methodology
+### Key Difference from Query-Structure-Only Approach
 
-Query-derived features:
-- ✅ Encode actual query structure
-- ✅ Capture session evolution (queries get more complex, more constrained)
-- ✅ Enable meaningful learning of exploration patterns
-- ✅ Follow the paper's feature engineering approach
+The previous approach only analyzed SPARQL query **structure** (predicates, filters, etc.). The current approach:
+
+1. **Executes queries** against Wikidata endpoint with caching
+2. **Analyzes actual result values** (not just query structure)
+3. **Computes real statistics** from returned bindings
+4. **Falls back to structure-based features** only when execution fails
+
 
 ## Feature Verification
 
-To verify features are properly extracted:
+To verify features are properly extracted from live results:
 
 ```python
 import pickle
+import json
 import numpy as np
 
-# Load features
+# Check extraction status
+with open('display_feats/raw_query_status.json', 'r') as f:
+    status = json.load(f)
+
+live_count = sum(1 for v in status.values() if v.get('status') == 'live_fetched')
+fallback_count = sum(1 for v in status.values() if v.get('status') == 'fallback_simulated')
+print(f"Live fetched: {live_count}, Fallback: {fallback_count}")
+
+# Load final PCA features
 with open('display_feats/display_pca_feats_9999.pickle', 'rb') as f:
     feats = pickle.load(f)
 
@@ -204,39 +218,54 @@ with open('display_feats/display_pca_feats_9999.pickle', 'rb') as f:
 print(f"Displays: {len(feats)}")
 all_feats = np.array([feats[k] for k in feats])
 print(f"Feature shape: {all_feats.shape}")
+
+# Compute pairwise distances
+from scipy.spatial.distance import pdist
+distances = pdist(all_feats, metric='euclidean')
 print(f"Distance range: {np.min(distances):.4f} - {np.max(distances):.4f}")
+
+# Check raw features before PCA
+with open('display_feats/raw_display_feats.pickle', 'rb') as f:
+    raw_feats = pickle.load(f)
+raw_dims = [v.shape[0] for v in raw_feats.values()]
+print(f"Raw feature dims: min={min(raw_dims)}, max={max(raw_dims)}")
 ```
 
 Expected results:
-- 178 displays
-- Shape: (178, 181)
+- Most displays should be `live_fetched` (not `fallback_simulated`)
+- 178 displays total
+- Final shape: (178, 181)
 - L2 distances between different displays: 0.3-1.4
-- Same query always has same features (seed-based)
-- Different queries have different features
+- Raw feature dimensions vary by number of result variables
+
+## Output Files
+
+| File | Description |
+|------|-------------|
+| `raw_query_results/display_*.json` | Cached SPARQL JSON responses |
+| `display_feats/raw_display_feats.pickle` | Raw feature vectors before PCA |
+| `display_feats/raw_query_status.json` | Status of each display (live vs fallback) |
+| `display_feats/display_pca_feats_9999.pickle` | Final 181-dim PCA-reduced features |
+| `display_feats/display_queries.json` | Display ID → original SPARQL query mapping |
+
+TODO: PCA legacy dims and naming
 
 ## Future Improvements
 
-To further enhance features, consider:
+1. **Richer Result Analysis**
+   - Type detection for literals (dates, coordinates, quantities)
+   - Language distribution analysis for multilingual labels
+   - URI structure analysis for entity/property references
 
-1. **Live SPARQL Execution** (if time/resources available)
-   - Execute queries against Wikidata SPARQL endpoint
-   - Extract actual result distributions
-   - Measure real cardinality instead of estimating
+2. **Semantic Embeddings**
+   - Use Wikidata entity embeddings (PyKEEN, TransE, etc.)
+   - Compute average entity embedding per result set
+   - Leverage property semantics from Wikidata ontology
 
-2. **Result Sampling**
-   - Execute LIMIT versions of queries
-   - Extract actual column distributions
-   - Compute real value histograms
-
-3. **Graph Structure Analysis**
-   - Analyze predicate relationships
-   - Compute semantic similarity between predicates
-   - Build knowledge graph embeddings
-
-4. **PCA Optimization**
-   - Run PCA on actual query results
-   - Find optimal dimension reduction
-   - Use actual explained variance ratio
+3. **Temporal Analysis**
+   - Extract and bin date/time values
+   - Compute time range features
+   - Analyze temporal predicates (P580, P582, P585)
 
 ## References
 

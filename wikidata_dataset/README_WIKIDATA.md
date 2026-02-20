@@ -42,7 +42,7 @@ logic_error_displays=[]  # Empty list - no error display filtering
 This disables the hardcoded REACT-IDA benchmark error list, which should only apply
 to the original cybersecurity dataset.
 
-## Running ExplorAct
+## Running on Wikidata examples 
 
 ```bash
 # From this dataset directory:
