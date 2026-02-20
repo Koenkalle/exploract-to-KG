@@ -42,7 +42,31 @@ logic_error_displays=[]  # Empty list - no error display filtering
 This disables the hardcoded REACT-IDA benchmark error list, which should only apply
 to the original cybersecurity dataset.
 
-## Running on Wikidata examples 
+## Creating the Wikidata Dataset
+
+To generate or regenerate this dataset from the ExploratoryQueryingSessions repository:
+
+```bash
+# From the exploract root directory:
+python create_wikidata_dataset.py --output wikidata_dataset
+
+# With live SPARQL query execution (fetches actual results from Wikidata):
+python create_wikidata_dataset.py --output wikidata_dataset --live
+
+# Use only cached query results (no network calls):
+python create_wikidata_dataset.py --output wikidata_dataset --live --cache-only
+```
+
+This will:
+1. Clone the ExploratoryQueryingSessions repository (if not already present)
+2. Parse SPARQL queries from the 30 sessions
+3. Create `session_repositories/` with actions.tsv and displays.tsv
+4. Generate feature files in `display_feats/` and `edge/`
+5. Create train/test splits in `chunked_sessions/`
+
+See `FEATURE_EXTRACTION.md` for details on how node features are extracted from query results.
+
+## Running ExplorAct on Wikidata 
 
 ```bash
 # From this dataset directory:
