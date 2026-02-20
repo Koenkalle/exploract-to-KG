@@ -10,6 +10,8 @@ A new dataset has been created using **30 real exploratory SPARQL query sessions
 /home/kasper/Reps/exploract/wikidata_dataset/
 ```
 
+Further documentation can be found in this folder
+
 ### Dataset Contents
 
 | File/Directory | Purpose | Details |
@@ -19,7 +21,6 @@ A new dataset has been created using **30 real exploratory SPARQL query sessions
 | `display_feats/display_pca_feats_9999.pickle` | Node embeddings | 181-dim per display |
 | `edge/{act_feats,col_action,cond_action}.pickle` | Edge features | action-dims + predicate-dims + cond-dims (dynamic) |
 | `chunked_sessions/unbiased_seed_*.pickle` | Train/test splits | 4 projects for cross-validation |
-| `run.py` | Model execution wrapper | Easy invocation of ea_sp, ea_mp, react |
 
 ### Quick Start
 
@@ -27,13 +28,13 @@ A new dataset has been created using **30 real exploratory SPARQL query sessions
 cd /home/kasper/Reps/exploract/wikidata_dataset
 
 # Run EA-SP (single-path model)
-python run.py ea_sp act 20250212 5 0
+python ../ea_sp.py act 20250212 5 0
 
 # Run EA-MP (multi-path model)
-python run.py ea_mp col 20250212 5 0
+python ../ea_mp.py col 20250212 5 0
 
 # Run REACT baseline
-python run.py react 20250212 5 0
+python ../react.py 20250212 5 0
 ```
 
 ---
@@ -175,8 +176,8 @@ Each project can be held out for testing while others train (--test_id 0, 1, 2, 
 
 Two seeds provided for reproducibility:
 - `unbiased_seed_20250212.pickle`
-- `unbiased_seed_20250214.pickle`
-
+- `unbiased_seed_20250214.pickle`  
+TODO: these are legacy seeds 
 ---
 
 ## Running Models
@@ -184,15 +185,17 @@ Two seeds provided for reproducibility:
 ### Command Format
 
 ```bash
-python run.py <model> <task> <seed> <main_size> <test_id>
+# From within the wikidata_dataset directory
+python ../ea_sp.py <task> <seed> <main_size> <test_id>
+python ../ea_mp.py <task> <seed> <main_size> <test_id>
+python ../react.py <seed> <main_size> <test_id>
 ```
 
 ### Parameters
 
 | Parameter | Options | Description |
 |---|---|---|
-| **model** | `ea_sp`, `ea_mp`, `react` | Which model to run |
-| **task** | `act`, `col`, `tg` | Prediction task |
+| **task** | `act`, `col`, `tg` | Prediction task (not used by REACT) |
 | **seed** | `20250212`, `20250214`, etc. | Random seed |
 | **main_size** | 1-8 (typical: 5-6) | Context size (δ) |
 | **test_id** | 0, 1, 2, 3 | Which project to test on |
@@ -202,16 +205,16 @@ python run.py <model> <task> <seed> <main_size> <test_id>
 ```bash
 # EA-SP: Predict next action type from last 5 queries
 cd /home/kasper/Reps/exploract/wikidata_dataset
-python run.py ea_sp act 20250212 5 0
+python ../ea_sp.py act 20250212 5 0
 
 # EA-MP: Predict next column/predicate from last 6 queries
-python run.py ea_mp col 20250212 6 0
+python ../ea_mp.py col 20250212 6 0
 
 # REACT: Baseline with TED similarity
-python run.py react 20250212 5 0
+python ../react.py 20250212 5 0
 
 # Joint prediction (action + column)
-python run.py ea_sp tg 20250212 5 1
+python ../ea_sp.py tg 20250212 5 1
 ```
 
 ### Model Descriptions
@@ -278,7 +281,6 @@ logic_error_displays = []  # Empty list disables filtering
 
 ```
 wikidata_dataset/
-├── run.py                                    # Wrapper script
 ├── DATASET_GUIDE.md                         # Detailed documentation
 ├── README_WIKIDATA.md                       # Dataset info
 │
@@ -287,7 +289,7 @@ wikidata_dataset/
 │   └── displays.tsv                         # 177 result states
 │
 ├── raw_datasets/
-│   └── 1.tsv                                # Dummy graph data
+│   └── 1.tsv                                # Dummy graph data (not used)
 │
 ├── display_feats/
 │   └── display_pca_feats_9999.pickle        # 181-dim embeddings
@@ -316,23 +318,13 @@ wikidata_dataset/
 
 ## Generating This Dataset
 
-The dataset was created with:
+The dataset can be created/regenerated with:
 
 ```bash
 cd /home/kasper/Reps/exploract
 python create_wikidata_dataset.py --output wikidata_dataset --projects 4
 ```
-
-To regenerate or create variants:
-
-```bash
-# Create with different number of projects
-python create_wikidata_dataset.py --output wikidata_v2 --projects 5
-
-# Use custom output
-python create_wikidata_dataset.py --output /path/to/my_dataset
-```
-
+See `README_WIKIDATA.md` for generation commands.
 See `create_wikidata_dataset.py` for source code.
 
 ---
@@ -367,17 +359,7 @@ head -10 wikidata_dataset/session_repositories/actions.tsv
 
 ---
 
-## Next Steps
-
-1. **Run a single experiment**: `python run.py ea_sp act 20250212 5 0`
-2. **Analyze results**: Check `model_stats/` and `dst_probs/` directories
-3. **Run all combinations**: Create shell script to test all models/tasks/projects
-4. **Compare with REACT-IDA**: Run same experiments on original dataset
-5. **Generate plots**: Use `result_analyser.ipynb` for visualization
-
----
-
-## Citation & Attribution
+## Links
 
 **Dataset Creation**:
 - ExploratoryQueryingSessions: https://github.com/hartig/ExploratoryQueryingSessions
@@ -393,7 +375,7 @@ head -10 wikidata_dataset/session_repositories/actions.tsv
 
 ---
 
-## Questions?
+## More:
 
 Refer to:
 - `wikidata_dataset/DATASET_GUIDE.md` - Detailed documentation

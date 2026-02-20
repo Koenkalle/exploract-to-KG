@@ -1,12 +1,16 @@
 # ExplorAct Quick Reference - Running on New Datasets
 
-A condensed guide for getting ExplorAct running on your own data in 5 minutes.
+NOTE: This file is likely outdated.
+
+A condensed guide/reminder on how to get ExplorAct running on your own data in 5 minutes.
+
+Uses dummy data, that in itself is meaningless.
 
 ## Key Principle
 
-**Datasets are self-contained and interchangeable.** Create one independently and run from within it, or use the default in the current directory.
+**Datasets should be self-contained and interchangeable.** Create one independently and run from within it, or use the default in the current directory.
 
-## TL;DR - Two Approaches
+## Approaches
 
 ### Option A: Use Default Dataset (Existing)
 ```bash
@@ -75,6 +79,8 @@ customer_id    amount    category    region    date
 - Header row with column names
 - Mix of numerical and categorical columns
 - At least 100 rows
+
+NOTE: Wikidata dataset does not use local datafiles currently. Relies on online endpoint.
 
 ### `session_repositories/actions.tsv`
 User interactions. Columns:

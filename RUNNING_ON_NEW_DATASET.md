@@ -1,6 +1,7 @@
 # Running ExplorAct on a New Dataset
+Note: This file is likely not up to date! 
 
-This guide shows how to prepare and run ExplorAct's methods (EA-SP, EA-MP, REACT) on a new dataset. All datasets are **self-contained and interchangeable** — you can create multiple datasets independently without affecting existing data.
+This guide shows how to prepare and run ExplorAct's methods (EA-SP, EA-MP, REACT) on a new dataset. All datasets are **self-contained and interchangeable**. You can create multiple datasets independently without affecting existing data.
 
 ## Key Principle: Self-Contained Datasets
 
@@ -342,13 +343,13 @@ print("Created feature pickle files")
 
 ```bash
 # Train EA-SP for action-type prediction (τ-rec)
-python ea_sp.py act 20250212 5 0
+python ../ea_sp.py act 20250212 5 0
 
 # Train EA-SP for column prediction (a-rec)
-python ea_sp.py col 20250212 5 0
+python ../ea_sp.py col 20250212 5 0
 
 # Train EA-SP for joint action-column prediction (τ,a)-rec)
-python ea_sp.py tg 20250212 5 0
+python ../ea_sp.py tg 20250212 5 0
 ```
 
 **Parameters explained:**
@@ -365,9 +366,9 @@ python ea_sp.py tg 20250212 5 0
 
 ```bash
 # Train EA-MP for all three tasks with context size 5
-python ea_mp.py act 20250212 5 0
-python ea_mp.py col 20250212 5 0
-python ea_mp.py tg 20250212 5 0
+python ../ea_mp.py act 20250212 5 0
+python ../ea_mp.py col 20250212 5 0
+python ../ea_mp.py tg 20250212 5 0
 ```
 
 This uses multiple perspectives (context trees of sizes 1..5) for better accuracy.
@@ -376,7 +377,7 @@ This uses multiple perspectives (context trees of sizes 1..5) for better accurac
 
 ```bash
 # Run REACT for comparison
-python react.py 20250212 5 0
+python ../react.py 20250212 5 0
 ```
 
 ## Step 4: Analyze Results
@@ -403,11 +404,11 @@ To evaluate inference time vs log size:
 
 ```bash
 # Time inference without training (quick test)
-python ea_sp_time.py act 5
-python ea_mp_time.py col 5
+python ../ea_sp_time.py act 5
+python ../ea_mp_time.py col 5
 
 # Analyze timing as log size grows
-python ea_sp_time_logsize.py 20250212 5
+python ../ea_sp_time_logsize.py 20250212 5
 ```
 
 ## Complete Minimal Example
@@ -507,36 +508,5 @@ def create_dataset():
 if __name__ == '__main__':
     create_dataset()
     print("\nTo run ExplorAct:")
-    print("  python ea_sp.py act 20250212 5 0")
+    print("  python ../ea_sp.py act 20250212 5 0")
 ```
-
-## Troubleshooting
-
-### Issue: "Missing feature files"
-**Solution**: Generate features using the feature engineering notebooks:
-```bash
-jupyter notebook node_feat_gen.ipynb
-jupyter notebook edge_feat_gen.ipynb
-```
-
-### Issue: "Empty graphs generated"
-**Solution**: Ensure you have at least 3-5 actions per session with proper parent-child relationships
-
-### Issue: "Dimension mismatch in GINE"
-**Solution**: Verify display features have 181 dimensions (check `display_pca_feats` shape)
-
-### Issue: "Module not found"
-**Solution**: Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-## Key Points for Your Dataset
-
-✅ **Data Columns**: Include mix of numerical and categorical columns (like real datasets)  
-✅ **Sessions**: Need at least 3+ actions per session with clear progression  
-✅ **Action Types**: Should be one of {filter, group, sort, projection}  
-✅ **Feature Extraction**: Node features must be 181-dim, edge features 20-dim  
-✅ **Train/Test Split**: Leave one project ID for testing, train on rest  
-
-Good luck running ExplorAct on your dataset!
